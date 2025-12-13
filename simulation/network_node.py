@@ -28,7 +28,7 @@ class NetworkNode:
     mac_address: str
     
     # Security properties
-    security_level: int  # 0-100
+    security_level: int = 50  # 0-100
     is_compromised: bool = False
     is_quarantined: bool = False
     
@@ -68,7 +68,6 @@ class NetworkNode:
     
     @classmethod
     def from_dict(cls, data):
-        """Create from dictionary"""
         return cls(
             id=data["id"],
             name=data["name"],

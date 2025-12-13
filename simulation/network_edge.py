@@ -58,19 +58,18 @@ class NetworkEdge:
         return (base_score + protocol_score) / 2
     
     def to_dict(self):
-        """Convert to dictionary for JSON serialization"""
         return {
-            "id": self.id,
-            "source": self.source_id,
-            "target": self.target_id,
-            "bandwidth": self.bandwidth,
-            "latency": self.latency,
-            "supported_protocols": [p.value for p in self.supported_protocols],
-            "current_protocol": self.current_protocol.value if self.current_protocol else None,
-            "encryption_level": self.encryption_level,
-            "is_monitored": self.is_monitored,
-            "traffic_volume": self.traffic_volume,
-            "packet_count": self.packet_count,
-            "error_rate": self.error_rate,
-            "security_score": self.get_security_score()
-        }
+        "id": self.id,
+        "source": self.source_id,
+        "target": self.target_id,
+        "bandwidth": self.bandwidth,
+        "latency": self.latency,
+        "supported_protocols": [p.value for p in self.supported_protocols],
+        "current_protocol": self.current_protocol.value if self.current_protocol else None,
+        "encryption_level": self.encryption_level,
+        "is_monitored": self.is_monitored,
+        "traffic_volume": self.traffic_volume,
+        "packet_count": self.packet_count,
+        "error_rate": self.error_rate,
+        "security_score": self.get_security_score()
+    }

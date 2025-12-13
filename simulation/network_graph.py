@@ -1,11 +1,11 @@
 import networkx as nx
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 import random
 import string
 from .network_node import NetworkNode, NodeType, OperatingSystem
 from .network_edge import NetworkEdge, Protocol
 
-class NetworkGraph:    
+class NetworkGraph:
     def __init__(self):
         self.graph = nx.Graph()
         self.nodes: Dict[str, NetworkNode] = {}
@@ -14,16 +14,29 @@ class NetworkGraph:
     
     def add_node(self, node: NetworkNode) -> None:
         self.nodes[node.id] = node
-        self.graph.add_node(node.id, **node.to_dict())
+        
+        # Add node attributes without the 'id' field
+        node_data = node.to_dict()
+        # Remove 'id' from node data since node ID is the key in NetworkX
+        node_data.pop('id', None)
+        
+        self.graph.add_node(node.id, **node_data)
     
     def add_edge(self, edge: NetworkEdge) -> None:
         self.edges[edge.id] = edge
-        self.graph.add_edge(
-            edge.source_id, 
-            edge.target_id, 
-            id=edge.id,
-            **edge.to_dict()
-        )
+        
+        # Get edge data without the 'id' field
+        edge_data = edge.to_dict()
+        # Remove fields that conflict with NetworkX or are redundant
+        edge_data.pop('id', None)
+        edge_data.pop('source', None)
+        edge_data.pop('target', None)
+        
+        # Add edge with attributes
+        self.graph.add_edge(edge.source_id, edge.target_id, **edge_data)
+        
+        # Store the edge ID separately as an attribute
+        self.graph[edge.source_id][edge.target_id]['edge_id'] = edge.id
     
     def remove_node(self, node_id: str) -> bool:
         if node_id in self.nodes:
@@ -46,7 +59,47 @@ class NetworkGraph:
             if (edge.source_id == source_id and edge.target_id == target_id) or \
                (edge.source_id == target_id and edge.target_id == source_id):
                 return edge
+        
+        if self.graph.has_edge(source_id, target_id):
+            edge_data = self.graph[source_id][target_id]
+            edge_id = edge_data.get('edge_id', f"{source_id}_{target_id}")
+            
+            return NetworkEdge(
+                id=edge_id,
+                source_id=source_id,
+                target_id=target_id,
+                bandwidth=edge_data.get('bandwidth', 100),
+                latency=edge_data.get('latency', 10),
+                supported_protocols=[Protocol(p) for p in edge_data.get('supported_protocols', ['tcp'])],
+                current_protocol=Protocol(edge_data['current_protocol']) if edge_data.get('current_protocol') else None,
+                encryption_level=edge_data.get('encryption_level', 0),
+                is_monitored=edge_data.get('is_monitored', False),
+                traffic_volume=edge_data.get('traffic_volume', 0),
+                packet_count=edge_data.get('packet_count', 0),
+                error_rate=edge_data.get('error_rate', 0)
+            )
         return None
+    
+    def get_edge_by_id(self, edge_id: str) -> Optional[NetworkEdge]:
+        return self.edges.get(edge_id)
+    
+    def update_edge_attributes(self, edge_id: str, **kwargs) -> bool:
+        if edge_id in self.edges:
+            edge = self.edges[edge_id]
+            
+            # Update the NetworkEdge object
+            for key, value in kwargs.items():
+                if hasattr(edge, key):
+                    setattr(edge, key, value)
+            
+            # Also update the NetworkX graph
+            if self.graph.has_edge(edge.source_id, edge.target_id):
+                for key, value in kwargs.items():
+                    if key not in ['id', 'source_id', 'target_id']:
+                        self.graph[edge.source_id][edge.target_id][key] = value
+            
+            return True
+        return False
     
     def generate_random_node_id(self) -> str:
         while True:
@@ -63,6 +116,7 @@ class NetworkGraph:
         self.graph.clear()
         self.nodes.clear()
         self.edges.clear()
+        self.edge_counter = 0
         
         # Create nodes
         nodes_data = [
@@ -73,14 +127,13 @@ class NetworkGraph:
             
             # Servers
             ("web_server", "Web Server", NodeType.SERVER, OperatingSystem.LINUX, "192.168.1.10"),
-            ("file_server", "File Server", NodeType.SERVER, NodeType.SERVER, "192.168.1.11"),
+            ("file_server", "File Server", NodeType.SERVER, OperatingSystem.LINUX, "192.168.1.11"),
             ("db_server", "Database Server", NodeType.SERVER, OperatingSystem.LINUX, "192.168.1.12"),
             
             # Client machines
             ("client_1", "CEO Laptop", NodeType.CLIENT, OperatingSystem.WINDOWS, "192.168.1.100"),
             ("client_2", "IT Admin", NodeType.CLIENT, OperatingSystem.LINUX, "192.168.1.101"),
             ("client_3", "Sales PC", NodeType.CLIENT, OperatingSystem.WINDOWS, "192.168.1.102"),
-            ("client_4", "HR PC", NodeType.CLIENT, OperatingSystem.MACOS, "192.168.1.103"),
         ]
         
         for node_id, name, node_type, os, ip in nodes_data:
@@ -107,7 +160,6 @@ class NetworkGraph:
             ("switch_1", "client_1"),
             ("switch_1", "client_2"),
             ("switch_1", "client_3"),
-            ("switch_1", "client_4"),
         ]
         
         for source_id, target_id in connections:
@@ -115,10 +167,10 @@ class NetworkGraph:
                 id=self.generate_random_edge_id(),
                 source_id=source_id,
                 target_id=target_id,
-                bandwidth=random.choice([100, 1000, 10000]),  # 100Mbps, 1Gbps, 10Gbps
-                latency=random.uniform(1, 20),  # 1-20ms
+                bandwidth=random.choice([100, 1000]),  # 100Mbps or 1Gbps
+                latency=random.uniform(1, 10),  # 1-10ms
                 supported_protocols=[Protocol.TCP, Protocol.HTTP, Protocol.HTTPS, Protocol.SSH],
-                current_protocol=Protocol.HTTPS,
+                current_protocol=random.choice([Protocol.HTTPS, Protocol.SSH]),
                 encryption_level=random.randint(70, 95)
             )
             self.add_edge(edge)
@@ -156,8 +208,8 @@ class NetworkGraph:
             "graph_metrics": {
                 "node_count": len(self.nodes),
                 "edge_count": len(self.edges),
-                "density": nx.density(self.graph),
-                "is_connected": nx.is_connected(self.graph)
+                "density": nx.density(self.graph) if len(self.nodes) > 1 else 0,
+                "is_connected": nx.is_connected(self.graph) if len(self.nodes) > 0 else False
             }
         }
     
@@ -188,16 +240,50 @@ class NetworkGraph:
                 else:
                     node_colors.append('gray')
             
-            nx.draw_networkx_nodes(self.graph, pos, node_color=node_colors, node_size=500)
-            nx.draw_networkx_edges(self.graph, pos, alpha=0.5)
+            # Draw compromised nodes with a different shape
+            compromised_nodes = [nid for nid, node in self.nodes.items() if node.is_compromised]
+            normal_nodes = [nid for nid in self.graph.nodes() if nid not in compromised_nodes]
+            
+            # Draw normal nodes
+            nx.draw_networkx_nodes(
+                self.graph, pos, 
+                nodelist=normal_nodes,
+                node_color=[node_colors[list(self.graph.nodes()).index(nid)] for nid in normal_nodes],
+                node_size=500
+            )
+            
+            # Draw compromised nodes with X marker
+            if compromised_nodes:
+                nx.draw_networkx_nodes(
+                    self.graph, pos,
+                    nodelist=compromised_nodes,
+                    node_color='black',
+                    node_size=700,
+                    node_shape='X'
+                )
+            
+            # Draw edges
+            nx.draw_networkx_edges(self.graph, pos, alpha=0.5, width=2)
+            
+            # Draw labels
             nx.draw_networkx_labels(self.graph, pos, font_size=10)
+            
+            # Draw edge labels (bandwidth)
+            edge_labels = {}
+            for (u, v) in self.graph.edges():
+                if 'bandwidth' in self.graph[u][v]:
+                    edge_labels[(u, v)] = f"{self.graph[u][v]['bandwidth']}Mbps"
+            
+            nx.draw_networkx_edge_labels(self.graph, pos, edge_labels=edge_labels, font_size=8)
             
             plt.title("Network Topology")
             plt.axis('off')
             plt.tight_layout()
             plt.savefig(filename, dpi=300)
             plt.close()
-            print(f"Visualization saved to {filename}")
+            print(f"✅ Visualization saved to {filename}")
             
         except ImportError:
-            print("Matplotlib not installed. Install with: pip install matplotlib")
+            print("⚠️ Matplotlib not installed. Install with: pip install matplotlib")
+        except Exception as e:
+            print(f"⚠️ Visualization error: {e}")
