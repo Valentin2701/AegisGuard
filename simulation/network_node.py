@@ -1,22 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import List, Dict, Optional
-
-class NodeType(Enum):
-    CLIENT = "client"
-    SERVER = "server"
-    ROUTER = "router"
-    SWITCH = "switch"
-    FIREWALL = "firewall"
-    HONEYPOT = "honeypot"
-
-class OperatingSystem(Enum):
-    WINDOWS = "windows"
-    LINUX = "linux"
-    MACOS = "macos"
-    IOS = "ios"
-    ANDROID = "android"
-    CUSTOM = "custom"
+from .config.enums import NodeType, OperatingSystem
 
 @dataclass
 class NetworkNode:

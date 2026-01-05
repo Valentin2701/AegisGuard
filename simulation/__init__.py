@@ -1,15 +1,32 @@
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Valentin2701"
 
-from .network_node import NetworkNode, NodeType, OperatingSystem
-from .network_edge import NetworkEdge, Protocol
-from .network_graph import NetworkGraph
+# Import from local config subpackage
+from .config.enums import (
+    NodeType, OperatingSystem, Protocol,
+    PacketType, PacketStatus, Direction, QoSClass
+)
 
+# Import simulation modules
+from .network_node import NetworkNode
+from .network_edge import NetworkEdge
+from .network_graph import NetworkGraph
+from .packet import Packet
+
+# Export everything
 __all__ = [
+    # Core classes
     "NetworkNode",
-    "NodeType", 
-    "OperatingSystem",
     "NetworkEdge",
+    "NetworkGraph", 
+    "Packet",
+    
+    # Enums from config
+    "NodeType",
+    "OperatingSystem", 
     "Protocol",
-    "NetworkGraph"
+    "PacketType",
+    "PacketStatus",
+    "Direction",
+    "QoSClass",
 ]

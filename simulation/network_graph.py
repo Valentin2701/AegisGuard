@@ -176,7 +176,6 @@ class NetworkGraph:
             self.add_edge(edge)
     
     def _get_default_services(self, node_type: NodeType) -> List[str]:
-        """Get default services for a node type"""
         defaults = {
             NodeType.SERVER: ["http", "ssh", "database"],
             NodeType.CLIENT: ["browser", "email", "office"],
@@ -188,7 +187,6 @@ class NetworkGraph:
         return defaults.get(node_type, [])
     
     def _get_value_score(self, node_type: NodeType, name: str) -> int:
-        """Get importance score for a node"""
         if "CEO" in name or "Database" in name:
             return 10
         elif node_type == NodeType.SERVER:
@@ -201,7 +199,6 @@ class NetworkGraph:
             return random.randint(3, 5)
     
     def to_dict(self) -> Dict:
-        """Convert entire network to dictionary"""
         return {
             "nodes": {nid: node.to_dict() for nid, node in self.nodes.items()},
             "edges": {eid: edge.to_dict() for eid, edge in self.edges.items()},
@@ -214,7 +211,6 @@ class NetworkGraph:
         }
     
     def visualize(self, filename: str = "network.png") -> None:
-        """Create a simple visualization of the network"""
         try:
             import matplotlib.pyplot as plt
             
@@ -281,9 +277,9 @@ class NetworkGraph:
             plt.tight_layout()
             plt.savefig(filename, dpi=300)
             plt.close()
-            print(f"✅ Visualization saved to {filename}")
+            print(f"Visualization saved to {filename}")
             
         except ImportError:
-            print("⚠️ Matplotlib not installed. Install with: pip install matplotlib")
+            print("Matplotlib not installed. Install with: pip install matplotlib")
         except Exception as e:
-            print(f"⚠️ Visualization error: {e}")
+            print(f"Visualization error: {e}")
