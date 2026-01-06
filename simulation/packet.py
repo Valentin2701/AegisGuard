@@ -418,8 +418,7 @@ class Packet:
     
     def is_tcp_handshake(self) -> bool:
         """Check if this is a TCP handshake packet"""
-        return (self.tcp_flags.syn and not self.tcp_flags.ack) or \
-               (self.tcp_flags.syn and self.tcp_flags.ack)
+        return self.tcp_flags.syn
     
     def is_tcp_fin(self) -> bool:
         """Check if this is a TCP FIN packet"""

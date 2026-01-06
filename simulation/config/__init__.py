@@ -1,7 +1,7 @@
 from .enums import (
     NodeType, OperatingSystem, Protocol,
     PacketType, PacketStatus, Direction, QoSClass,
-    #TrafficPatternType, AttackType, AttackSeverity,
+    TrafficPattern, #AttackType, AttackSeverity,
     #EncryptionLevel, SecurityLevel, SimulationMode, LogLevel
 )
 
@@ -12,6 +12,7 @@ __all__ = [
     # Enums
     "NodeType", "OperatingSystem", "Protocol",
     "PacketType", "PacketStatus", "Direction", "QoSClass",
-    "TrafficPatternType", "AttackType", "AttackSeverity",
+    "TrafficPattern", "AttackType", "AttackSeverity",
     "EncryptionLevel", "SecurityLevel", "SimulationMode", "LogLevel",
+    "NetworkConfig",
 ]

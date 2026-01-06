@@ -4,8 +4,11 @@ __author__ = "Valentin2701"
 # Import from local config subpackage
 from .config.enums import (
     NodeType, OperatingSystem, Protocol,
-    PacketType, PacketStatus, Direction, QoSClass
+    PacketType, PacketStatus, Direction, QoSClass, 
+    TrafficPattern
 )
+
+from .config.network_config import NetworkConfig
 
 # Import simulation modules
 from .network_node import NetworkNode
@@ -15,6 +18,9 @@ from .packet import Packet
 
 # Export everything
 __all__ = [
+    # Configurations
+    "NetworkConfig",
+
     # Core classes
     "NetworkNode",
     "NetworkEdge",
@@ -29,4 +35,5 @@ __all__ = [
     "PacketStatus",
     "Direction",
     "QoSClass",
+    "TrafficPattern",
 ]

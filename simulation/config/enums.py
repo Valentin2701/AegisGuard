@@ -79,3 +79,18 @@ class QoSClass(Enum):
     VOICE = "voice"                 # VoIP, real-time audio
     CRITICAL = "critical"           # Emergency, control systems
     NETWORK_CONTROL = "network_control"  # Routing protocols
+
+class TrafficPattern(Enum):
+    """Types of traffic patterns"""
+    WEB_BROWSING = "web_browsing"
+    VIDEO_STREAMING = "video_streaming"
+    FILE_TRANSFER = "file_transfer"
+    EMAIL = "email"
+    DATABASE = "database"
+    IOT_SENSOR = "iot_sensor"
+    VOIP = "voip"
+    VIDEO_CONFERENCING = "video_conferencing"
+    BACKUP = "backup"
+    GAMING = "gaming"
+    CLOUD_SYNC = "cloud_sync"
+    API_CALLS = "api_calls"
