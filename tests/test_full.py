@@ -7,22 +7,17 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Import simulation components at module level
+from simulation import (
+    NetworkGraph, TrafficGenerator, AttackGenerator,
+    TrafficPattern, AttackType, Protocol, NodeType,
+    TrafficConfig, AttackConfig, NetworkNode, OperatingSystem
+)
+
 def test_all_components():
     """Test all simulation components together"""
     print("🧪 AEGIS GUARD - COMPREHENSIVE TEST")
     print("=" * 60)
-    
-    try:
-        # Import all components
-        from simulation import (
-            NetworkGraph, TrafficGenerator, AttackGenerator,
-            TrafficPattern, AttackType, Protocol, NodeType,
-            TrafficConfig, AttackConfig
-        )
-        print("✅ All imports successful")
-    except ImportError as e:
-        print(f"❌ Import failed: {e}")
-        return False
     
     # ==================== TEST 1: NETWORK CREATION ====================
     print("\n1. Testing Network Creation...")
@@ -161,7 +156,8 @@ def test_all_components():
     
     # Test traffic config
     try:
-        web_config = TrafficConfig.get_pattern_config(TrafficPattern.WEB_BROWSING)
+        from simulation.config.traffic_config import TrafficConfig, TrafficPatternConfig
+        web_config = TrafficPatternConfig(TrafficPattern.WEB_BROWSING)
         print(f"   ✅ Traffic config loaded for WEB_BROWSING")
         print(f"      Packet rate: {web_config.packet_rate_range} packets/sec")
         print(f"      Avg size: {web_config.avg_packet_size} bytes")
@@ -171,6 +167,7 @@ def test_all_components():
     
     # Test attack config
     try:
+        from simulation.config.attack_config import AttackConfig
         ddos_config = AttackConfig.get_attack_config(AttackType.DDOS)
         if ddos_config:
             print(f"   ✅ Attack config loaded for DDoS")
@@ -215,7 +212,11 @@ def test_all_components():
     print(f"   📊 Mixed Simulation Results:")
     print(f"      Total normal packets: {mixed_stats['normal_packets']}")
     print(f"      Total attack packets: {mixed_stats['attack_packets']}")
-    print(f"      Attack ratio: {mixed_stats['attack_packets']/(mixed_stats['normal_packets'] + mixed_stats['attack_packets'])*100:.1f}%")
+    if (mixed_stats['normal_packets'] + mixed_stats['attack_packets']) > 0:
+        attack_ratio = mixed_stats['attack_packets']/(mixed_stats['normal_packets'] + mixed_stats['attack_packets'])*100
+        print(f"      Attack ratio: {attack_ratio:.1f}%")
+    else:
+        print(f"      Attack ratio: 0.0%")
     print(f"      Total bytes: {mixed_stats['total_bytes']:,}")
     
     # ==================== TEST 6: NETWORK STATE ====================
@@ -258,57 +259,118 @@ def run_performance_test():
     
     try:
         from simulation import NetworkGraph, TrafficGenerator, AttackGenerator
+        from simulation.config.network_config import NetworkConfig
         
-        # Create larger network
-        print("Creating larger network (20 nodes)...")
+        # Test 1: Create larger network from config
+        print("\n1. Testing larger network creation...")
         network = NetworkGraph()
         
-        # Manually create larger network
-        # (In future, you could add a method create_large_network())
-        print("   (Note: For performance test, implement create_large_network method)")
-        print("   Using small office network for now...")
-        network.create_small_office_network()
+        # Check if create_network_from_config exists
+        if hasattr(network, 'create_network_from_config'):
+            network.create_network_from_config("university_campus")
+        else:
+            print("   ⚠️  create_network_from_config not found, creating basic network")
+            # Fallback: manually create a larger network
+            network.create_small_office_network()
+            # Add more nodes manually
+            for i in range(20):
+                from simulation import NetworkNode, NodeType, OperatingSystem
+                node = NetworkNode(
+                    id=f"extra_node_{i}",
+                    name=f"Extra Node {i}",
+                    node_type=NodeType.CLIENT,
+                    os=OperatingSystem.WINDOWS,
+                    ip_address=f"192.168.1.{150 + i}",
+                    mac_address=f"00:AA:BB:CC:{i:02d}:{i:02d}",
+                    security_level=60,
+                    value_score=5
+                )
+                network.add_node(node)
         
-        # Test with many connections
+        print(f"   ✅ Network created: {len(network.nodes)} nodes")
+        
+        # Test 2: Performance with traffic generation
+        print("\n2. Testing traffic generation performance...")
         traffic_gen = TrafficGenerator(network)
         attack_gen = AttackGenerator(network)
         
+        # Create multiple connections
+        nodes = list(network.nodes.values())
+        if len(nodes) >= 10:
+            print("   Creating 10 traffic connections...")
+            for i in range(min(10, len(nodes))):
+                source = nodes[i]
+                # Find a different target
+                possible_targets = [n for n in nodes if n.id != source.id]
+                if possible_targets:
+                    target = possible_targets[i % len(possible_targets)]
+                    traffic_gen.create_connection(
+                        source.id,
+                        target.id,
+                        TrafficPattern.WEB_BROWSING
+                    )
+        
         # Measure packet generation speed
+        print("\n3. Testing packet generation speed...")
         import time
         
-        print("\nTesting packet generation speed...")
-        start_time = time.time()
-        
-        # Generate lots of packets
         total_packets = 0
-        iterations = 10
+        iterations = 5
+        start_time = time.time()
         
         for i in range(iterations):
             normal = traffic_gen.generate_packets(time_delta=1.0)
             attacks = attack_gen.update(time_delta=1.0)
             total_packets += len(normal) + len(attacks)
+            print(f"   Iteration {i+1}: {len(normal)} normal, {len(attacks)} attack packets")
         
         end_time = time.time()
         elapsed = end_time - start_time
         
-        print(f"   Generated {total_packets} packets in {elapsed:.2f} seconds")
-        print(f"   Packets per second: {total_packets/elapsed:.0f}")
-        print(f"   Real-time factor: {iterations/elapsed:.2f}x")
+        print(f"\n   📊 Performance Results:")
+        print(f"      Total packets: {total_packets}")
+        print(f"      Total time: {elapsed:.2f} seconds")
+        print(f"      Packets per second: {total_packets/elapsed:.0f}")
+        print(f"      Real-time factor: {iterations/elapsed:.2f}x")
         
         if elapsed < iterations:
-            print("   ✅ Faster than real-time (good for simulation)")
+            print("      ✅ Faster than real-time (good for simulation)")
         else:
-            print("   ⚠️  Slower than real-time")
+            print(f"      ⚠️  Slower than real-time (by {elapsed-iterations:.2f}s)")
+        
+        # Test 3: Memory usage (approximate)
+        print("\n4. Testing memory usage...")
+        import sys
+        network_size = sys.getsizeof(network)
+        traffic_size = sys.getsizeof(traffic_gen)
+        attack_size = sys.getsizeof(attack_gen)
+        
+        print(f"   Memory usage (approx):")
+        print(f"      Network: {network_size:,} bytes")
+        print(f"      Traffic generator: {traffic_size:,} bytes")
+        print(f"      Attack generator: {attack_size:,} bytes")
+        print(f"      Total: {network_size + traffic_size + attack_size:,} bytes")
+        
+        # Test 4: Scalability
+        print("\n5. Testing scalability...")
+        if len(network.nodes) > 50:
+            print(f"   ✅ Good scalability: {len(network.nodes)} nodes handled")
+        elif len(network.nodes) > 20:
+            print(f"   ⚠️  Moderate scalability: {len(network.nodes)} nodes")
+        else:
+            print(f"   ⚠️  Limited scalability: only {len(network.nodes)} nodes")
         
     except Exception as e:
-        print(f"   ⚠️  Performance test failed: {e}")
+        print(f"   ❌ Performance test failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     
     return True
 
 def main():
     """Run all tests"""
-    print("🚀 Starting NetSentinel AI Comprehensive Test Suite")
+    print("🚀 Starting Aegis Guard Comprehensive Test Suite")
     print("=" * 60)
     
     all_passed = True
@@ -318,12 +380,13 @@ def main():
         if not test_all_components():
             all_passed = False
         
-        # Run performance test (optional)
+        # Run performance test
         print("\n" + "=" * 60)
-        run_perf = input("Run performance test? (y/n): ").lower().strip()
-        if run_perf == 'y':
-            if not run_performance_test():
-                all_passed = False
+        print("Performance test will create a larger network for testing.")
+        print("This may take a moment...")
+        
+        if not run_performance_test():
+            all_passed = False
         
     except KeyboardInterrupt:
         print("\n\n⏹️  Test interrupted by user")
@@ -337,7 +400,15 @@ def main():
     print("\n" + "=" * 60)
     if all_passed:
         print("🎉 ALL TESTS PASSED! 🎉")
-        print("Your NetSentinel AI simulation is working correctly!")
+        print("Your Aegis Guard simulation is working correctly!")
+        
+        # Show summary
+        from simulation import __version__
+        print(f"\n📋 Summary:")
+        print(f"   Version: {__version__}")
+        print(f"   Components: Network, Traffic, Attacks, Configuration")
+        print(f"   Status: Ready for AI/ML integration")
+        
     else:
         print("⚠️  SOME TESTS FAILED")
         print("Check the errors above and fix the issues.")
