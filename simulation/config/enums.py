@@ -80,6 +80,8 @@ class QoSClass(Enum):
     CRITICAL = "critical"           # Emergency, control systems
     NETWORK_CONTROL = "network_control"  # Routing protocols
 
+# ==================== TRAFFIC ENUMS ====================
+
 class TrafficPattern(Enum):
     """Types of traffic patterns"""
     WEB_BROWSING = "web_browsing"
@@ -94,3 +96,23 @@ class TrafficPattern(Enum):
     GAMING = "gaming"
     CLOUD_SYNC = "cloud_sync"
     API_CALLS = "api_calls"
+
+# ==================== ATTACK ENUMS ====================
+class AttackType(Enum):
+    """Types of cyber attacks"""
+    PORT_SCAN = "port_scan"
+    DDOS = "ddos"
+    MALWARE_SPREAD = "malware_spread"
+    ARP_SPOOFING = "arp_spoofing"
+    SQL_INJECTION = "sql_injection"
+    BRUTE_FORCE = "brute_force"
+    XSS = "xss"
+    CSRF = "csrf"
+    ZERO_DAY = "zero_day"
+
+class AttackSeverity(Enum):
+    """Attack severity levels"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
