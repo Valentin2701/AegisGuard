@@ -1,6 +1,3 @@
-"""
-Attack configuration for NetSentinel AI
-"""
 from typing import Dict, List, Tuple, Any
 import random
 from .enums import AttackType, Protocol, AttackSeverity
@@ -11,43 +8,26 @@ class AttackConfig:
     # Attack severity mapping
     ATTACK_SEVERITY = {
         AttackType.PORT_SCAN: AttackSeverity.LOW,
-        AttackType.VULNERABILITY_SCAN: AttackSeverity.LOW,
-        AttackType.OS_FINGERPRINTING: AttackSeverity.LOW,
         AttackType.ARP_SPOOFING: AttackSeverity.MEDIUM,
-        AttackType.DNS_SPOOFING: AttackSeverity.MEDIUM,
-        AttackType.BRUTE_FORCE: AttackSeverity.MEDIUM,
-        AttackType.SQL_INJECTION: AttackSeverity.MEDIUM,
         AttackType.XSS: AttackSeverity.MEDIUM,
         AttackType.CSRF: AttackSeverity.MEDIUM,
+        AttackType.BRUTE_FORCE: AttackSeverity.MEDIUM,
+        AttackType.SQL_INJECTION: AttackSeverity.MEDIUM,
         AttackType.MALWARE_SPREAD: AttackSeverity.HIGH,
-        AttackType.RANSOMWARE: AttackSeverity.HIGH,
-        AttackType.TROJAN: AttackSeverity.HIGH,
-        AttackType.WORM: AttackSeverity.HIGH,
         AttackType.DDOS: AttackSeverity.HIGH,
-        AttackType.DOS: AttackSeverity.HIGH,
-        AttackType.HTTP_FLOOD: AttackSeverity.HIGH,
-        AttackType.SYN_FLOOD: AttackSeverity.HIGH,
-        AttackType.UDP_FLOOD: AttackSeverity.HIGH,
-        AttackType.ICMP_FLOOD: AttackSeverity.HIGH,
-        AttackType.MAN_IN_THE_MIDDLE: AttackSeverity.CRITICAL,
         AttackType.ZERO_DAY: AttackSeverity.CRITICAL,
-        AttackType.APT: AttackSeverity.CRITICAL,
-        AttackType.LATERAL_MOVEMENT: AttackSeverity.CRITICAL,
-        AttackType.DATA_EXFILTRATION: AttackSeverity.CRITICAL,
     }
     
     # Attack probabilities (per second in a network)
     ATTACK_PROBABILITIES = {
         AttackType.PORT_SCAN: 0.02,           # 2% chance per second
-        AttackType.VULNERABILITY_SCAN: 0.01,   # 1%
         AttackType.BRUTE_FORCE: 0.008,        # 0.8%
         AttackType.DDOS: 0.005,               # 0.5%
         AttackType.MALWARE_SPREAD: 0.01,      # 1%
         AttackType.SQL_INJECTION: 0.003,      # 0.3%
         AttackType.XSS: 0.002,                # 0.2%
-        AttackType.SYN_FLOOD: 0.004,          # 0.4%
+        AttackType.CSRF: 0.002,               # 0.2%
         AttackType.ARP_SPOOFING: 0.001,       # 0.1%
-        AttackType.DNS_SPOOFING: 0.001,       # 0.1%
         AttackType.ZERO_DAY: 0.0001,          # 0.01% (rare)
     }
     
@@ -117,17 +97,52 @@ class AttackConfig:
             "threat_score_range": (0.6, 0.9),
             "detection_difficulty": 0.5,
         },
-        AttackType.SYN_FLOOD: {
-            "description": "SYN flood attack (half-open connections)",
-            "packet_rate_range": (100.0, 1000.0),
-            "packet_size_range": (40, 60),       # SYN packets are small
-            "duration_range": (60, 300),
+        AttackType.XSS: {
+            "description": "Cross-Site Scripting attacks",
+            "packet_rate_range": (0.2, 2.0),
+            "packet_size_range": (300, 1500),
+            "duration_range": (5, 60),
+            "target_ports": [80, 443],
+            "protocols": [Protocol.HTTP, Protocol.HTTPS],
+            "payloads": [
+                "<script>alert('XSS')</script>",
+                "<img src=x onerror=alert('XSS')>",
+                "javascript:alert('XSS')",
+            ],
+            "threat_score_range": (0.5, 0.8),
+            "detection_difficulty": 0.6,
+        },
+        AttackType.CSRF: {
+            "description": "Cross-Site Request Forgery attacks",
+            "packet_rate_range": (0.1, 1.0),
+            "packet_size_range": (400, 1200),
+            "duration_range": (5, 30),
+            "target_ports": [80, 443],
+            "protocols": [Protocol.HTTP, Protocol.HTTPS],
+            "threat_score_range": (0.4, 0.7),
+            "detection_difficulty": 0.7,  # Harder to detect
+        },
+        AttackType.ARP_SPOOFING: {
+            "description": "ARP spoofing/man-in-the-middle attacks",
+            "packet_rate_range": (1.0, 10.0),
+            "packet_size_range": (28, 28),  # ARP packets are fixed size
+            "duration_range": (30, 300),
+            "protocols": [Protocol.ARP],
+            "spoofing_targets": ["gateway", "dns_server", "critical_host"],
+            "threat_score_range": (0.6, 0.9),
+            "detection_difficulty": 0.8,  # Very hard to detect
+        },
+        AttackType.ZERO_DAY: {
+            "description": "Zero-day exploit attacks",
+            "packet_rate_range": (0.1, 5.0),
+            "packet_size_range": (100, 5000),
+            "duration_range": (1, 600),
             "target_ports": "any",
-            "protocols": [Protocol.TCP],
-            "spoof_source_ip": True,
-            "threat_score_range": (0.7, 0.9),
-            "detection_difficulty": 0.2,
-            "resource_consumption": 0.8,
+            "protocols": [Protocol.TCP, Protocol.UDP, Protocol.HTTP, Protocol.HTTPS],
+            "encryption_probability": 0.8,
+            "threat_score_range": (0.9, 1.0),
+            "detection_difficulty": 0.95,  # Extremely hard to detect
+            "success_rate": 0.3,  # Higher success for zero-day
         },
     }
     
@@ -136,26 +151,25 @@ class AttackConfig:
         "stealthy_recon": {
             "stages": [
                 {"type": AttackType.PORT_SCAN, "duration": 30, "intensity": 0.3},
-                {"type": AttackType.OS_FINGERPRINTING, "duration": 10, "intensity": 0.4},
-                {"type": AttackType.VULNERABILITY_SCAN, "duration": 60, "intensity": 0.5},
+                {"type": AttackType.BRUTE_FORCE, "duration": 60, "intensity": 0.6},
             ],
-            "description": "Stealthy reconnaissance before main attack"
+            "description": "Reconnaissance followed by intrusion"
         },
         "ddos_campaign": {
             "stages": [
                 {"type": AttackType.PORT_SCAN, "duration": 10, "intensity": 0.2},
                 {"type": AttackType.DDOS, "duration": 180, "intensity": 0.9},
-                {"type": AttackType.BRUTE_FORCE, "duration": 60, "intensity": 0.6},
+                {"type": AttackType.MALWARE_SPREAD, "duration": 120, "intensity": 0.7},
             ],
-            "description": "DDoS followed by intrusion attempts"
+            "description": "DDoS followed by malware deployment"
         },
-        "malware_outbreak": {
+        "web_attack": {
             "stages": [
-                {"type": AttackType.MALWARE_SPREAD, "duration": 300, "intensity": 0.7},
-                {"type": AttackType.DATA_EXFILTRATION, "duration": 120, "intensity": 0.8},
-                {"type": AttackType.LATERAL_MOVEMENT, "duration": 180, "intensity": 0.6},
+                {"type": AttackType.SQL_INJECTION, "duration": 30, "intensity": 0.5},
+                {"type": AttackType.XSS, "duration": 20, "intensity": 0.4},
+                {"type": AttackType.CSRF, "duration": 15, "intensity": 0.6},
             ],
-            "description": "Malware spread with data exfiltration"
+            "description": "Web application attack chain"
         },
     }
     
@@ -193,6 +207,34 @@ class AttackConfig:
             "ids": 0.8,
             "ips": 0.85,
             "waf": 0.95,  # Web Application Firewall
+        },
+        AttackType.XSS: {
+            "firewall": 0.4,
+            "ids": 0.7,
+            "ips": 0.8,
+            "waf": 0.9,
+            "content_security_policy": 0.95,
+        },
+        AttackType.CSRF: {
+            "firewall": 0.3,
+            "ids": 0.5,
+            "ips": 0.6,
+            "csrf_tokens": 0.98,
+        },
+        AttackType.ARP_SPOOFING: {
+            "firewall": 0.2,
+            "ids": 0.6,
+            "ips": 0.7,
+            "arp_inspection": 0.95,
+            "port_security": 0.9,
+        },
+        AttackType.ZERO_DAY: {
+            "firewall": 0.1,
+            "ids": 0.2,
+            "ips": 0.3,
+            "behavior_analysis": 0.6,
+            "sandboxing": 0.7,
+            "threat_intelligence": 0.4,
         },
     }
     

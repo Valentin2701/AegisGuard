@@ -373,8 +373,11 @@ class AttackGenerator:
             AttackType.MALWARE_SPREAD: 0.01, # 1% chance
             AttackType.BRUTE_FORCE: 0.008,   # 0.8% chance
             AttackType.SQL_INJECTION: 0.003, # 0.3% chance
+            AttackType.XSS: 0.002,           # 0.2% chance
+            AttackType.CSRF: 0.002,          # 0.2% chance
             AttackType.ARP_SPOOFING: 0.001,  # 0.1% chance
-        }
+            AttackType.ZERO_DAY: 0.0001,     # 0.01% chance (very rare)
+        }  
         
         # Statistics
         self.stats = {
