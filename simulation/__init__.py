@@ -5,28 +5,33 @@ __author__ = "Valentin2701"
 from .config.enums import (
     NodeType, OperatingSystem, Protocol,
     PacketType, PacketStatus, Direction, QoSClass, 
-    TrafficPattern
+    TrafficPattern, AttackType, AttackSeverity,
 )
 
 from .config.network_config import NetworkConfig
-#from .config.traffic_config import TrafficConfig
+from .config.traffic_config import TrafficPatternConfig
 
 # Import simulation modules
 from .network_node import NetworkNode
 from .network_edge import NetworkEdge
 from .network_graph import NetworkGraph
 from .packet import Packet
+from .traffic_generator import TrafficGenerator
+from .attack_generator import AttackGenerator
 
 # Export everything
 __all__ = [
     # Configurations
     "NetworkConfig",
+    "TrafficPatternConfig",
 
     # Core classes
     "NetworkNode",
     "NetworkEdge",
     "NetworkGraph", 
     "Packet",
+    "TrafficGenerator",
+    "AttackGenerator",
     
     # Enums from config
     "NodeType",
@@ -37,4 +42,6 @@ __all__ = [
     "Direction",
     "QoSClass",
     "TrafficPattern",
+    "AttackType",
+    "AttackSeverity",
 ]

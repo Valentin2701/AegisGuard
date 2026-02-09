@@ -1,12 +1,12 @@
 from .enums import (
     NodeType, OperatingSystem, Protocol,
     PacketType, PacketStatus, Direction, QoSClass,
-    TrafficPattern, #AttackType, AttackSeverity,
+    TrafficPattern, AttackType, AttackSeverity,
     #EncryptionLevel, SecurityLevel, SimulationMode, LogLevel
 )
 
 from .network_config import NetworkConfig
-#from .traffic_config import TrafficConfig
+from .traffic_config import TrafficPatternConfig
 
 __all__ = [
     # Enums
@@ -14,5 +14,5 @@ __all__ = [
     "PacketType", "PacketStatus", "Direction", "QoSClass",
     "TrafficPattern", "AttackType", "AttackSeverity",
     "EncryptionLevel", "SecurityLevel", "SimulationMode", "LogLevel",
-    "NetworkConfig",
+    "NetworkConfig", "TrafficPatternConfig"
 ]
