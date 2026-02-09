@@ -6,7 +6,7 @@ from .enums import (
 )
 
 from .network_config import NetworkConfig
-from .traffic_config import TrafficPatternConfig
+from .traffic_config import TrafficConfig
 from .attack_config import AttackConfig
 
 __all__ = [
@@ -15,5 +15,5 @@ __all__ = [
     "PacketType", "PacketStatus", "Direction", "QoSClass",
     "TrafficPattern", "AttackType", "AttackSeverity",
     "EncryptionLevel", "SecurityLevel", "SimulationMode", "LogLevel",
-    "NetworkConfig", "TrafficPatternConfig", "AttackConfig",
+    "NetworkConfig", "TrafficConfig", "AttackConfig",
 ]

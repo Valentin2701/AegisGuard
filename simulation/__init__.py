@@ -9,7 +9,7 @@ from .config.enums import (
 )
 
 from .config.network_config import NetworkConfig
-from .config.traffic_config import TrafficPatternConfig
+from .config.traffic_config import TrafficConfig
 from .config.attack_config import AttackConfig
 
 # Import simulation modules
@@ -24,7 +24,7 @@ from .attack_generator import AttackGenerator
 __all__ = [
     # Configurations
     "NetworkConfig",
-    "TrafficPatternConfig",
+    "TrafficConfig",
     "AttackConfig",
 
     # Core classes

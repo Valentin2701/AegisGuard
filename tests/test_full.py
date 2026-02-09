@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 def test_all_components():
     """Test all simulation components together"""
-    print("🧪 NET SENTINEL AI - COMPREHENSIVE TEST")
+    print("🧪 AEGIS GUARD - COMPREHENSIVE TEST")
     print("=" * 60)
     
     try:
@@ -243,7 +243,7 @@ def test_all_components():
     
     # Visualize network
     try:
-        network.visualize("test_comprehensive_network.png")
+        network.visualize("tests/test_comprehensive_network.png")
         print(f"   🎨 Network visualization saved: test_comprehensive_network.png")
     except Exception as e:
         print(f"   ⚠️  Visualization failed: {e}")
