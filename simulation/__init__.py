@@ -9,6 +9,7 @@ from .config.enums import (
 )
 
 from .config.network_config import NetworkConfig
+#from .config.traffic_config import TrafficConfig
 
 # Import simulation modules
 from .network_node import NetworkNode
