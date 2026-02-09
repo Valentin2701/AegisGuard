@@ -10,6 +10,7 @@ from .config.enums import (
 
 from .config.network_config import NetworkConfig
 from .config.traffic_config import TrafficPatternConfig
+from .config.attack_config import AttackConfig
 
 # Import simulation modules
 from .network_node import NetworkNode
@@ -24,6 +25,7 @@ __all__ = [
     # Configurations
     "NetworkConfig",
     "TrafficPatternConfig",
+    "AttackConfig",
 
     # Core classes
     "NetworkNode",
