@@ -2,6 +2,8 @@ import networkx as nx
 from typing import Dict, List, Optional, Tuple, Any
 import random
 import string
+
+from simulation.config.network_config import NetworkConfig
 from .network_node import NetworkNode, NodeType, OperatingSystem
 from .network_edge import NetworkEdge, Protocol
 
@@ -176,7 +178,6 @@ class NetworkGraph:
             self.add_edge(edge)
     
     def _get_default_services(self, node_type: NodeType) -> List[str]:
-        """Get default services for a node type"""
         defaults = {
             NodeType.SERVER: ["http", "ssh", "database"],
             NodeType.CLIENT: ["browser", "email", "office"],
@@ -188,7 +189,6 @@ class NetworkGraph:
         return defaults.get(node_type, [])
     
     def _get_value_score(self, node_type: NodeType, name: str) -> int:
-        """Get importance score for a node"""
         if "CEO" in name or "Database" in name:
             return 10
         elif node_type == NodeType.SERVER:
@@ -201,7 +201,6 @@ class NetworkGraph:
             return random.randint(3, 5)
     
     def to_dict(self) -> Dict:
-        """Convert entire network to dictionary"""
         return {
             "nodes": {nid: node.to_dict() for nid, node in self.nodes.items()},
             "edges": {eid: edge.to_dict() for eid, edge in self.edges.items()},
@@ -214,7 +213,6 @@ class NetworkGraph:
         }
     
     def visualize(self, filename: str = "network.png") -> None:
-        """Create a simple visualization of the network"""
         try:
             import matplotlib.pyplot as plt
             
@@ -281,9 +279,132 @@ class NetworkGraph:
             plt.tight_layout()
             plt.savefig(filename, dpi=300)
             plt.close()
-            print(f"✅ Visualization saved to {filename}")
+            print(f"Visualization saved to {filename}")
             
         except ImportError:
-            print("⚠️ Matplotlib not installed. Install with: pip install matplotlib")
+            print("Matplotlib not installed. Install with: pip install matplotlib")
         except Exception as e:
-            print(f"⚠️ Visualization error: {e}")
+            print(f"Visualization error: {e}")
+    def create_network_from_config(self, preset_name: str = "small_office"):
+        """Create network from configuration preset"""
+        from .config.network_config import NetworkConfig
+    
+        # Clear existing network
+        self.graph.clear()
+        self.nodes.clear()
+        self.edges.clear()
+        self.edge_counter = 0
+    
+        # Get configuration
+        preset = NetworkConfig.get_topology_preset(preset_name)
+        if not preset:
+            print(f"⚠️  Preset '{preset_name}' not found, using small_office")
+            preset = NetworkConfig.get_topology_preset("small_office")
+    
+        node_counts = preset["node_counts"]
+        ip_range = preset["ip_range"]
+    
+        print(f"📊 Creating {preset_name} network: {preset['description']}")
+    
+        # Create all nodes
+        node_id_counter = 0
+    
+        for node_type, count in node_counts.items():
+            template = NetworkConfig.get_node_template(node_type)
+            if not template:
+                print(f"⚠️  Template not found for node type '{node_type}'")
+                continue
+            
+            for i in range(count):
+                node_id = f"{node_type.value}_{node_id_counter}"
+                node_id_counter += 1
+            
+                # Generate IP based on node type and index
+                if ip_range == "192.168.1.0/24":
+                    ip_suffix = node_id_counter + 10  # Start from .11
+                    ip_address = f"192.168.1.{ip_suffix}"
+                elif ip_range == "10.0.0.0/16":
+                    subnet = node_id_counter // 256
+                    host = node_id_counter % 256
+                    ip_address = f"10.0.{subnet}.{host}"
+                elif ip_range == "172.16.0.0/12":
+                    subnet = node_id_counter // 256
+                    host = node_id_counter % 256
+                    ip_address = f"172.16.{subnet}.{host}"
+                elif ip_range == "10.10.0.0/24":
+                    ip_address = f"10.10.0.{node_id_counter + 10}"
+                else:
+                    ip_address = f"10.0.0.{node_id_counter}"
+            
+                # Create node
+                node = NetworkNode(
+                    id=node_id,
+                    name=f"{node_type.value.title()} {i+1}",
+                    node_type=node_type,
+                    os=template.os,
+                    ip_address=ip_address,
+                    mac_address=f"00:1A:2B:3C:4D:{node_id_counter:02d}",
+                    security_level=template.generate_security_level(),
+                    services=template.default_services.copy(),
+                    value_score=template.generate_value_score()
+                )
+            
+                self.add_node(node)
+    
+        # Create basic connectivity (simplified)
+        # In a real implementation, you'd create more sophisticated topologies
+        node_ids = list(self.nodes.keys())
+    
+        # Create a hierarchical structure
+        # 1. Connect routers together (if multiple routers)
+        routers = [nid for nid, node in self.nodes.items() if node.node_type == NodeType.ROUTER]
+        if len(routers) > 1:
+            for i in range(len(routers) - 1):
+                edge = NetworkEdge(
+                    id=self.generate_random_edge_id(),
+                    source_id=routers[i],
+                    target_id=routers[i + 1],
+                    bandwidth=10000,  # 10 Gbps
+                    latency=1.0,
+                    supported_protocols=[Protocol.TCP, Protocol.UDP, Protocol.ICMP],
+                    current_protocol=Protocol.TCP,
+                    encryption_level=95
+                )
+                self.add_edge(edge)
+    
+        # 2. Connect switches to routers
+        switches = [nid for nid, node in self.nodes.items() if node.node_type == NodeType.SWITCH]
+        for switch in switches:
+            if routers:
+                router = random.choice(routers)
+                edge = NetworkEdge(
+                    id=self.generate_random_edge_id(),
+                    source_id=switch,
+                    target_id=router,
+                    bandwidth=10000,
+                    latency=2.0,
+                    supported_protocols=[Protocol.TCP, Protocol.UDP],
+                    current_protocol=Protocol.TCP,
+                    encryption_level=90
+                )
+                self.add_edge(edge)
+    
+        # 3. Connect other nodes to switches
+        for node_id, node in self.nodes.items():
+            if node.node_type not in [NodeType.ROUTER, NodeType.SWITCH]:
+                if switches:
+                    switch = random.choice(switches)
+                    edge = NetworkEdge(
+                        id=self.generate_random_edge_id(),
+                        source_id=node_id,
+                        target_id=switch,
+                        bandwidth=template.typical_bandwidth if (template := NetworkConfig.get_node_template(node.node_type)) else 100,
+                        latency=5.0,
+                        supported_protocols=[Protocol.TCP, Protocol.HTTP, Protocol.HTTPS],
+                        current_protocol=Protocol.HTTPS,
+                        encryption_level=random.randint(70, 95)
+                    )
+                    self.add_edge(edge)
+    
+        print(f"✅ Created network: {len(self.nodes)} nodes, {len(self.edges)} edges")
+        return self

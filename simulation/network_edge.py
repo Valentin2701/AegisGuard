@@ -1,16 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional
-
-class Protocol(Enum):
-    HTTP = "http"
-    HTTPS = "https"
-    TCP = "tcp"
-    UDP = "udp"
-    TLS = "tls"
-    IPSEC = "ipsec"
-    SSH = "ssh"
-    FTP = "ftp"
+from .config.enums import Protocol
 
 @dataclass
 class NetworkEdge:
