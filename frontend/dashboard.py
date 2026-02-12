@@ -1,3 +1,4 @@
+from networkx import nodes
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
@@ -49,19 +50,35 @@ class MockBackend:
         # Generate mock nodes with various states
         node_types = ["Workstation", "Server", "Firewall", "Switch", "IoT", "Honeypot"]
         statuses = ["Healthy", "Compromised", "Quarantined", "Under Attack", "Monitoring"]
-        
-        for i in range(1, 25):
+    
+        for i in range(1, 21): 
             status = np.random.choice(statuses, p=[0.6, 0.1, 0.1, 0.1, 0.1])
             node_type = np.random.choice(node_types)
+        
+            connections = []
+        
+            if i <= 16:  # Workstations connect to servers
+                connections.append(np.random.randint(17, 21))  # Connect to servers
+            else:  # Servers connect to each other
+                connections = [17, 18, 19, 20]
+                connections.remove(i)
+        
+            # Add some random connections
+            num_connections = np.random.randint(1, 4)
+            for _ in range(num_connections):
+                conn = np.random.randint(1, 21)
+                if conn != i and conn not in connections:
+                    connections.append(conn)
+        
             nodes.append({
                 "id": f"node-{i:03d}",
                 "name": f"{node_type}-{i:02d}",
                 "type": node_type,
                 "status": status,
                 "ip": f"192.168.1.{i}",
-                "os": np.random.choice(["Windows", "Linux", "macOS", "iOS", "Android"]),
-                "threat_score": np.random.randint(0, 100),
-                "connections": np.random.randint(1, 10, size=np.random.randint(1, 5)).tolist(),
+                "os": np.random.choice(["Windows", "Linux", "macOS"]),
+                "threat_score": np.random.randint(0, 100) if status == "Compromised" else 0,
+                "connections": connections,
                 "last_seen": (datetime.now() - timedelta(minutes=np.random.randint(1, 60))).isoformat(),
                 "is_compromised": status == "Compromised",
                 "is_quarantined": status == "Quarantined",
@@ -160,179 +177,278 @@ class APIClient:
                 return None
 
 # ============ VISUALIZATION FUNCTIONS ============
-def create_network_graph(nodes, highlight_compromised=True, highlight_honeypots=True):
+def create_network_graph(nodes):
     """Create an interactive network graph using Plotly"""
     
-    # Create node positions using a force-directed layout simulation
-    np.random.seed(42)  # For reproducible layout
+    if not nodes:
+        fig = go.Figure()
+        fig.update_layout(
+            title='Network Topology (No Data)',
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            height=600
+        )
+        return fig
+    
+    # Create node positions
+    np.random.seed(42)
     n_nodes = len(nodes)
     
-    # Generate positions in a circular layout with some randomness
+    # Use a circular layout for better edge visibility
     angles = np.linspace(0, 2*np.pi, n_nodes, endpoint=False)
-    radius = 1
-    x_positions = radius * np.cos(angles) + np.random.randn(n_nodes) * 0.1
-    y_positions = radius * np.sin(angles) + np.random.randn(n_nodes) * 0.1
+    radius = 3
+    x_positions = radius * np.cos(angles)
+    y_positions = radius * np.sin(angles)
     
-    # Create node traces
-    node_traces = []
+    # Assign positions to nodes
+    for i, node in enumerate(nodes):
+        node['x'] = x_positions[i]
+        node['y'] = y_positions[i]
     
-    # Separate nodes by type for better visualization
-    normal_nodes = []
+    # Create edges - FIXED: Better edge creation logic
+    edge_x = []
+    edge_y = []
+    
+    # Track unique connections to avoid duplicates
+    connections_added = set()
+    
+    for i, node in enumerate(nodes):
+        node_x = node['x']
+        node_y = node['y']
+        
+        # Get connections - ensure it's a list
+        connections = node.get('connections', [])
+        if isinstance(connections, (int, float)):
+            connections = [connections]
+        elif not isinstance(connections, list):
+            connections = []
+        
+        for connection in connections:
+            # Convert to int if possible
+            try:
+                conn_idx = int(connection)
+            except (ValueError, TypeError):
+                continue
+                
+            # Check if connection is valid
+            if 0 <= conn_idx < len(nodes) and conn_idx != i:
+                # Create a unique key for this connection (avoid duplicates)
+                conn_key = tuple(sorted([i, conn_idx]))
+                
+                if conn_key not in connections_added:
+                    connections_added.add(conn_key)
+                    
+                    # Add line from node to connection
+                    edge_x.extend([node_x, nodes[conn_idx]['x'], None])
+                    edge_y.extend([node_y, nodes[conn_idx]['y'], None])
+    
+    # Create edge trace with more visible styling
+    edge_trace = go.Scatter(
+        x=edge_x,
+        y=edge_y,
+        mode='lines',
+        line=dict(
+            color='rgba(100,100,255,0.4)',  # Blue-ish color for better visibility
+            width=1.5,
+            dash=None
+        ),
+        hoverinfo='none',
+        name='Network Connections'
+    )
+    
+    # Group nodes by status
+    healthy_nodes = []
     compromised_nodes = []
     quarantined_nodes = []
     honeypot_nodes = []
     monitoring_nodes = []
+    under_attack_nodes = []
     
-    for i, node in enumerate(nodes):
-        node['x'] = x_positions[i]
-        node['y'] = y_positions[i]
-        
+    for node in nodes:
         if node.get('is_honeypot', False):
             honeypot_nodes.append(node)
         elif node.get('is_compromised', False):
             compromised_nodes.append(node)
         elif node.get('is_quarantined', False):
             quarantined_nodes.append(node)
+        elif node.get('status') == 'Under Attack':
+            under_attack_nodes.append(node)
         elif node.get('status') == 'Monitoring':
             monitoring_nodes.append(node)
         else:
-            normal_nodes.append(node)
+            healthy_nodes.append(node)
     
-    # Add normal nodes
-    if normal_nodes:
+    node_traces = []
+    
+    # Healthy nodes
+    if healthy_nodes:
         node_traces.append(go.Scatter(
-            x=[n['x'] for n in normal_nodes],
-            y=[n['y'] for n in normal_nodes],
+            x=[n['x'] for n in healthy_nodes],
+            y=[n['y'] for n in healthy_nodes],
             mode='markers+text',
             marker=dict(
-                size=20,
+                size=25,
                 color='#2ecc71',
                 line=dict(color='#27ae60', width=2),
                 symbol='circle'
             ),
-            text=[n['name'] for n in normal_nodes],
+            text=[n.get('name', f"Node-{i}") for i, n in enumerate(healthy_nodes)],
             textposition="top center",
-            name='Healthy Nodes',
+            textfont=dict(size=10),
+            name='Healthy',
             hoverinfo='text',
-            hovertext=[f"Name: {n['name']}<br>IP: {n['ip']}<br>OS: {n['os']}<br>Type: {n['type']}<br>Status: {n['status']}" 
-                      for n in normal_nodes]
+            hovertext=[f"✅ HEALTHY<br>Name: {n.get('name', 'Unknown')}<br>IP: {n.get('ip', 'Unknown')}<br>Type: {n.get('type', 'Unknown')}" 
+                      for n in healthy_nodes]
         ))
     
-    # Add compromised nodes
+    # Compromised nodes
     if compromised_nodes:
         node_traces.append(go.Scatter(
             x=[n['x'] for n in compromised_nodes],
             y=[n['y'] for n in compromised_nodes],
             mode='markers+text',
             marker=dict(
-                size=25,
+                size=30,
                 color='#e74c3c',
                 line=dict(color='#c0392b', width=2),
                 symbol='x',
                 opacity=0.9
             ),
-            text=[n['name'] for n in compromised_nodes],
+            text=[n.get('name', f"Node-{i}") for i, n in enumerate(compromised_nodes)],
             textposition="top center",
+            textfont=dict(size=10, color='red'),
             name='Compromised',
             hoverinfo='text',
-            hovertext=[f"⚠️ COMPROMISED ⚠️<br>Name: {n['name']}<br>IP: {n['ip']}<br>Threat Score: {n.get('threat_score', 'N/A')}" 
+            hovertext=[f"⚠️ COMPROMISED ⚠️<br>Name: {n.get('name', 'Unknown')}<br>IP: {n.get('ip', 'Unknown')}<br>Threat Score: {n.get('threat_score', 'N/A')}" 
                       for n in compromised_nodes]
         ))
     
-    # Add quarantined nodes - FIXED: removed 'dash' property
+    # Quarantined nodes
     if quarantined_nodes:
         node_traces.append(go.Scatter(
             x=[n['x'] for n in quarantined_nodes],
             y=[n['y'] for n in quarantined_nodes],
             mode='markers+text',
             marker=dict(
-                size=22,
+                size=28,
                 color='#f39c12',
-                line=dict(color='#e67e22', width=2),  # Removed dash property
+                line=dict(color='#e67e22', width=2),
                 symbol='square'
             ),
-            text=[n['name'] for n in quarantined_nodes],
+            text=[n.get('name', f"Node-{i}") for i, n in enumerate(quarantined_nodes)],
             textposition="top center",
+            textfont=dict(size=10),
             name='Quarantined',
             hoverinfo='text',
-            hovertext=[f"🔒 QUARANTINED<br>Name: {n['name']}<br>IP: {n['ip']}" for n in quarantined_nodes]
+            hovertext=[f"🔒 QUARANTINED<br>Name: {n.get('name', 'Unknown')}<br>IP: {n.get('ip', 'Unknown')}" 
+                      for n in quarantined_nodes]
         ))
     
-    # Add honeypot nodes
+    # Honeypot nodes
     if honeypot_nodes:
         node_traces.append(go.Scatter(
             x=[n['x'] for n in honeypot_nodes],
             y=[n['y'] for n in honeypot_nodes],
             mode='markers+text',
             marker=dict(
-                size=22,
+                size=28,
                 color='#9b59b6',
                 line=dict(color='#8e44ad', width=2),
                 symbol='diamond'
             ),
-            text=[n['name'] for n in honeypot_nodes],
+            text=[n.get('name', f"Node-{i}") for i, n in enumerate(honeypot_nodes)],
             textposition="top center",
-            name='Honeypots',
+            textfont=dict(size=10),
+            name='Honeypot',
             hoverinfo='text',
-            hovertext=[f"🍯 HONEYPOT<br>Name: {n['name']}<br>IP: {n['ip']}" for n in honeypot_nodes]
+            hovertext=[f"🍯 HONEYPOT<br>Name: {n.get('name', 'Unknown')}<br>IP: {n.get('ip', 'Unknown')}" 
+                      for n in honeypot_nodes]
         ))
     
-    # Add monitoring nodes
+    # Under Attack nodes
+    if under_attack_nodes:
+        node_traces.append(go.Scatter(
+            x=[n['x'] for n in under_attack_nodes],
+            y=[n['y'] for n in under_attack_nodes],
+            mode='markers+text',
+            marker=dict(
+                size=28,
+                color='#e67e22',
+                line=dict(color='#d35400', width=2),
+                symbol='circle'
+            ),
+            text=[n.get('name', f"Node-{i}") for i, n in enumerate(under_attack_nodes)],
+            textposition="top center",
+            textfont=dict(size=10),
+            name='Under Attack',
+            hoverinfo='text',
+            hovertext=[f"🔥 UNDER ATTACK<br>Name: {n.get('name', 'Unknown')}<br>IP: {n.get('ip', 'Unknown')}" 
+                      for n in under_attack_nodes]
+        ))
+    
+    # Monitoring nodes
     if monitoring_nodes:
         node_traces.append(go.Scatter(
             x=[n['x'] for n in monitoring_nodes],
             y=[n['y'] for n in monitoring_nodes],
             mode='markers+text',
             marker=dict(
-                size=20,
+                size=25,
                 color='#3498db',
                 line=dict(color='#2980b9', width=2),
                 symbol='circle'
             ),
-            text=[n['name'] for n in monitoring_nodes],
+            text=[n.get('name', f"Node-{i}") for i, n in enumerate(monitoring_nodes)],
             textposition="top center",
+            textfont=dict(size=10),
             name='Monitoring',
             hoverinfo='text',
-            hovertext=[f"🔍 MONITORING<br>Name: {n['name']}<br>IP: {n['ip']}" for n in monitoring_nodes]
+            hovertext=[f"🔍 MONITORING<br>Name: {n.get('name', 'Unknown')}<br>IP: {n.get('ip', 'Unknown')}" 
+                      for n in monitoring_nodes]
         ))
     
-    # Create edges (connections between nodes)
-    edge_trace = go.Scatter(
-        x=[], y=[],
-        mode='lines',
-        line=dict(color='rgba(100,100,100,0.3)', width=1, dash=None),  # dash is valid here
-        hoverinfo='none',
-        name='Connections'
-    )
+    # Combine all traces - edges FIRST so they appear behind nodes
+    all_traces = [edge_trace] + node_traces
     
-    edge_x = []
-    edge_y = []
-    
-    for node in nodes:
-        for connection in node.get('connections', []):
-            if isinstance(connection, int) and connection < len(nodes):
-                edge_x.extend([node['x'], nodes[connection]['x'], None])
-                edge_y.extend([node['y'], nodes[connection]['y'], None])
+    # Calculate layout bounds
+    all_x = [node['x'] for node in nodes]
+    all_y = [node['y'] for node in nodes]
+    x_range = [min(all_x) - 1, max(all_x) + 1]
+    y_range = [min(all_y) - 1, max(all_y) + 1]
     
     # Create figure
     fig = go.Figure(
-        data=[edge_trace] + node_traces,
+        data=all_traces,
         layout=go.Layout(
-            title='Network Topology',
+            title=dict(
+                text='Network Topology with Connections',
+                font=dict(size=16)
+            ),
             showlegend=True,
             hovermode='closest',
             margin=dict(b=20, l=5, r=5, t=40),
-            annotations=[dict(
-                text="Interactive Network Graph - Click nodes for details",
-                showarrow=False,
-                xref="paper", yref="paper",
-                x=0.005, y=-0.002
-            )],
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+                range=x_range
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+                range=y_range
+            ),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            height=600
+            height=600,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01,
+                bgcolor='rgba(255,255,255,0.8)'
+            )
         )
     )
     
