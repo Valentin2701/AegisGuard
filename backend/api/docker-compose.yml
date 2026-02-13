@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: aegis-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    networks:
+      - aegis-network
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: aegis-redis-commander
+    environment:
+      - REDIS_HOSTS=local:aegis-redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - aegis-network
+
+networks:
+  aegis-network:
+    driver: bridge
+
+volumes:
+  redis-data:
