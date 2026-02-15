@@ -62,7 +62,8 @@ class RedisStateManager:
         pipeline.sadd('nodes:all', node_id)
         
         # Add to status set
-        status = node_data.get('status', 'healthy')
+        status = 'compromised' if node_data.get('is_compromised', False) else 'quarantined' if node_data.get('is_quarantined', False) else 'healthy'
+        pipeline.hset(key, 'status', status)
         pipeline.sadd(f'nodes:{status}', node_id)
         
         pipeline.execute()
@@ -128,4 +129,80 @@ class RedisStateManager:
                 nodes.append(node_data)
         
         return nodes
+    
+    # ============ Attack Management ============
+    
+    def add_attack(self, attack: Dict) -> str:
+        """Add a new attack"""
+        # Generate ID
+        attack_id = f"attack-{self.redis.redis.incr('counters:attack'):04d}"
+        attack['id'] = attack_id
+        attack['timestamp'] = datetime.now().isoformat()
+        
+        key = f"attack:{attack_id}"
+        
+        pipeline = self.redis.pipeline()
+        
+        # Store attack as hash
+        for field, value in attack.items():
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value)
+            pipeline.hset(key, field, value)
+        
+        # Add to active attacks
+        pipeline.sadd('attacks:active', attack_id)
+        
+        # Add to history (keep last 1000)
+        pipeline.lpush('attacks:history', json.dumps(attack))
+        pipeline.ltrim('attacks:history', 0, 999)
+        
+        # Set expiration (1 hour for active attacks)
+        pipeline.expire(key, 3600)
+        
+        pipeline.execute()
+        
+        # Publish update
+        self.redis.publish('attacks', {
+            'event': 'attack_added',
+            'attack': attack,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        return attack_id
+    
+    def get_active_attacks(self) -> List[Dict]:
+        """Get all active attacks"""
+        attack_ids = self.redis.smembers('attacks:active')
+        attacks = []
+        
+        for attack_id in attack_ids:
+            attack_data = self.redis.hgetall(f"attack:{attack_id}")
+            if attack_data:
+                attacks.append(attack_data)
+        
+        return attacks
+    
+    def mitigate_attack(self, attack_id: str) -> bool:
+        """Mitigate an attack"""
+        # Remove from active set
+        self.redis.srem('attacks:active', attack_id)
+        
+        # Update attack status
+        self.redis.hset(f"attack:{attack_id}", 'is_active', False)
+        self.redis.hset(f"attack:{attack_id}", 'stopped', True)
+        self.redis.hset(f"attack:{attack_id}", 'detection_time', datetime.now().isoformat())
+        
+        # Publish update
+        self.redis.publish('attacks', {
+            'event': 'attack_mitigated',
+            'attack_id': attack_id,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        return True
+    
+    def get_attack_history(self, limit: int = 100) -> List[Dict]:
+        """Get attack history"""
+        history = self.redis.lrange('attacks:history', 0, limit - 1)
+        return [json.loads(h) if isinstance(h, str) else h for h in history]
     
