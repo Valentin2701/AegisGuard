@@ -10,6 +10,21 @@ import uuid
 class NetworkService:
     def __init__(self):
         self.quarantine_logs = []
+
+    def get_network_status(self):
+        simulation = current_app.simulation_state
+        total_nodes = len(simulation.network.nodes)
+        compromised_nodes = len([n for n in simulation.network.nodes.values() if n.is_compromised])
+        quarantined_nodes = len([n for n in simulation.network.nodes.values() if n.is_quarantined])
+        healthy_nodes = total_nodes - compromised_nodes - quarantined_nodes
+        
+        return {
+            'total_nodes': total_nodes,
+            'compromised_nodes': compromised_nodes,
+            'quarantined_nodes': quarantined_nodes,
+            'healthy_nodes': healthy_nodes,
+            'timestamp': datetime.now().isoformat()
+        }
     
     def get_all_nodes(self):
         """Get all nodes in the network"""
