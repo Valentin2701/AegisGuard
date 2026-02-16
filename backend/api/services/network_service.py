@@ -1,5 +1,6 @@
 import sys
 import os
+from flask import current_app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from network_graph import NetworkGraph
@@ -8,14 +9,13 @@ import uuid
 
 class NetworkService:
     def __init__(self):
-        self.network = NetworkGraph()
-        self.network.create_small_office_network()
         self.quarantine_logs = []
     
     def get_all_nodes(self):
         """Get all nodes in the network"""
+        simulation = current_app.simulation_state
         nodes = []
-        for node_id, node in self.network.nodes.items():
+        for node_id, node in simulation.network.nodes.items():
             nodes.append({
                 'id': node_id,
                 'name': node.name,
@@ -34,8 +34,9 @@ class NetworkService:
     
     def _get_node_connections(self, node_id):
         """Get connections for a specific node"""
+        simulation = current_app.simulation_state
         connections = []
-        for edge in self.network.edges:
+        for edge in simulation.network.edges:
             if edge[0] == node_id:
                 connections.append(edge[1])
             elif edge[1] == node_id:
@@ -70,14 +71,15 @@ class NetworkService:
     
     def quarantine_node(self, node_id, reason):
         """Quarantine a specific node"""
-        if node_id in self.network.nodes:
-            self.network.nodes[node_id].is_quarantined = True
-            self.network.nodes[node_id].is_compromised = False
+        simulation = current_app.simulation_state
+        if node_id in simulation.network.nodes:
+            simulation.network.nodes[node_id].is_quarantined = True
+            simulation.network.nodes[node_id].is_compromised = False
             
             log_entry = {
                 'id': str(uuid.uuid4())[:8],
                 'node_id': node_id,
-                'node_name': self.network.nodes[node_id].name,
+                'node_name': simulation.network.nodes[node_id].name,
                 'action': 'quarantine',
                 'reason': reason,
                 'timestamp': datetime.now().isoformat()
@@ -89,13 +91,14 @@ class NetworkService:
     
     def release_node(self, node_id):
         """Release a node from quarantine"""
-        if node_id in self.network.nodes and self.network.nodes[node_id].is_quarantined:
-            self.network.nodes[node_id].is_quarantined = False
+        simulation = current_app.simulation_state
+        if node_id in simulation.network.nodes and simulation.network.nodes[node_id].is_quarantined:
+            simulation.network.nodes[node_id].is_quarantined = False
             
             log_entry = {
                 'id': str(uuid.uuid4())[:8],
                 'node_id': node_id,
-                'node_name': self.network.nodes[node_id].name,
+                'node_name': simulation.network.nodes[node_id].name,
                 'action': 'release',
                 'reason': 'Security clearance',
                 'timestamp': datetime.now().isoformat()
@@ -110,7 +113,8 @@ class NetworkService:
     
     def get_network_topology(self):
         """Get complete network topology"""
+        simulation = current_app.simulation_state
         return {
             'nodes': self.get_all_nodes(),
-            'edges': [{'source': e[0], 'target': e[1]} for e in self.network.edges]
+            'edges': [{'source': e[0], 'target': e[1]} for e in simulation.network.edges]
         }
