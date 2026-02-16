@@ -1,5 +1,7 @@
 import sys
 import os
+from backend.api import SimulationState
+from flask import current_app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from simulation import NetworkGraph, NetworkNode, NetworkEdge, NodeType, OperatingSystem
@@ -9,10 +11,6 @@ import random
 
 class SimulationService:
     def __init__(self):
-        self.network = NetworkGraph()
-        self.network.create_small_office_network()
-        self.simulation_state = 'stopped'
-        self.active_attacks = []
         self.agent_actions = []
         self.honeypots = []
         self.attack_history = []
@@ -20,17 +18,21 @@ class SimulationService:
         
     def get_network_status(self):
         """Get overall network status"""
-        compromised_count = sum(1 for node in self.network.nodes.values() if node.is_compromised)
-        quarantined_count = sum(1 for node in self.network.nodes.values() if node.is_quarantined)
+        simulation = current_app.simulation_state
+        compromised_count = sum(1 for node in simulation.network.nodes.values() if node.is_compromised)
+        quarantined_count = sum(1 for node in simulation.network.nodes.values() if node.is_quarantined)
         
         return {
-            'status': self.simulation_state,
-            'total_nodes': len(self.network.nodes),
-            'active_attacks': len(self.active_attacks),
+            'status': simulation.status,
+            'total_nodes': len(simulation.network.nodes),
+            'attack_stats': simulation.attack_generator.get_stats(),
+            'active_attacks': simulation.attack_generator.get_active_attacks(),
+            'detected_attacks': simulation.attack_generator.get_detected_attacks(),
             'quarantined_nodes': quarantined_count,
             'honeypots_deployed': len(self.honeypots),
+            'compromised_nodes': compromised_count,
             'threat_level': self._calculate_threat_level(),
-            'total_traffic': random.uniform(30, 60),
+            'traffic stats': simulation.traffic_generator.get_traffic_stats(),
             'last_updated': datetime.now().isoformat()
         }
     
@@ -43,28 +45,17 @@ class SimulationService:
         else:
             return 'Low'
     
-    def inject_attack(self, attack_type, target, severity='Medium', source='Unknown'):
+    def inject_attack(self, attack_type, severity='Medium'):
         """Inject a new attack"""
-        attack_id = str(uuid.uuid4())[:8]
-        attack = {
-            'id': attack_id,
-            'type': attack_type,
-            'source': source,
-            'target': target,
-            'severity': severity,
-            'status': 'Active',
-            'started': datetime.now().strftime('%H:%M:%S'),
-            'timestamp': datetime.now().isoformat(),
-            'agent_action': 'Detecting'
-        }
+        simulation = current_app.simulation_state
+        attack = simulation.attack_generator.generate_specific_attack(attack_type, severity)
         
-        self.active_attacks.append(attack)
         self.attack_history.append(attack)
         
         # Add agent action
         self.agent_actions.append({
             'agent': f'Agent-{random.randint(1, 4):02d}',
-            'action': f'Detected {attack_type} attack on {target}',
+            'action': f'Detected {attack_type} attack',
             'timestamp': datetime.now().strftime('%H:%M:%S'),
             'severity': severity
         })
@@ -72,41 +63,29 @@ class SimulationService:
         return attack
     
     def get_active_attacks(self):
-        return self.active_attacks
+        simulation = current_app.simulation_state
+        return simulation.attack_generator.get_active_attacks()
     
     def get_agent_actions(self, limit=50):
         return self.agent_actions[-limit:]
     
     def deploy_honeypot(self, name, honeypot_type, ip=None, location=None):
         """Deploy a new honeypot"""
-        honeypot_id = str(uuid.uuid4())[:8]
+        simulation = current_app.simulation_state
         
         if not ip:
             ip = f"192.168.1.{random.randint(200, 250)}"
         
-        honeypot = {
-            'id': honeypot_id,
-            'name': name,
-            'type': honeypot_type,
-            'ip': ip,
-            'location': location or 'Perimeter',
-            'status': 'Active',
-            'deployed_at': datetime.now().isoformat(),
-            'triggers': 0,
-            'attacks_caught': []
-        }
+        honeypot = NetworkNode()
+        honeypot.name = name
+        honeypot.node_type = NodeType.HONEYPOT
+        honeypot.ip_address = ip
+        honeypot.os = OperatingSystem.LINUX
+        honeypot.is_honeypot = True
+        honeypot.security_level = 20  # Honeypots are intentionally vulnerable
+        honeypot.value_score = 5  # Moderate value for scoring
         
-        self.honeypots.append(honeypot)
-        
-        # Add node to network
-        node_id = f"honeypot-{honeypot_id}"
-        self.network.add_node(
-            node_id,
-            name,
-            NodeType.HONEYPOT,
-            ip,
-            OperatingSystem.LINUX
-        )
+        self.honeypots.append(honeypot.to_dict())
         
         return honeypot
     
@@ -137,25 +116,30 @@ class SimulationService:
     
     def control_simulation(self, action, data=None):
         """Control simulation state"""
+        simulation = current_app.simulation_state
         if action == 'start':
-            self.simulation_state = 'running'
+            simulation.is_running = True
+            simulation.start_time = datetime.now()
         elif action == 'pause':
-            self.simulation_state = 'paused'
+            simulation.is_running = False
+            simulation.start_time = None
         elif action == 'reset':
-            self.simulation_state = 'stopped'
-            self.network = NetworkGraph()
-            self.network.create_small_office_network()
-            self.active_attacks = []
+            simulation.is_running = False
+            current_app.simulation_state = SimulationState()
+            self.agent_actions = []
             self.honeypots = []
+            self.attack_history = []
+            self.metrics_history = []
         
         return {
             'action': action,
-            'state': self.simulation_state,
+            'state': 'Running' if simulation.is_running else 'Paused',
             'timestamp': datetime.now().isoformat()
         }
     
     def get_simulation_state(self):
+        simulation = current_app.simulation_state
         return {
-            'state': self.simulation_state,
+            'state': 'Running' if simulation.is_running else 'Paused',
             'timestamp': datetime.now().isoformat()
         }
