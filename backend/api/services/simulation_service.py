@@ -143,3 +143,49 @@ class SimulationService:
             'state': 'Running' if simulation.is_running else 'Paused',
             'timestamp': datetime.now().isoformat()
         }
+    
+    
+    def get_all_agents(self):
+        """Get all agents in the network"""
+        simulation = current_app.simulation_state
+        agents = []
+        for node in simulation.network.nodes.values():
+            if node.node_type.value == 'AGENT' if hasattr(node.node_type, 'value') else False:
+                agents.append({
+                    'id': node.id,
+                    'name': node.name,
+                    'ip_address': node.ip_address,
+                    'os': node.os.value if hasattr(node.os, 'value') else str(node.os),
+                    'security_level': node.security_level,
+                    'is_compromised': node.is_compromised,
+                    'is_quarantined': node.is_quarantined
+                })
+        return agents
+    
+    def get_agent_actions(self, limit=50):
+        """Get recent agent actions"""
+        return self.agent_actions[-limit:]
+    
+    def get_agent(self, agent_id):
+        """Get specific agent by ID"""
+        simulation = current_app.simulation_state
+        for node in simulation.network.nodes.values():
+            if node.id == agent_id and (node.node_type.value == 'AGENT' if hasattr(node.node_type, 'value') else False):
+                return {
+                    'id': node.id,
+                    'name': node.name,
+                    'ip_address': node.ip_address,
+                    'os': node.os.value if hasattr(node.os, 'value') else str(node.os),
+                    'security_level': node.security_level,
+                    'is_compromised': node.is_compromised,
+                    'is_quarantined': node.is_quarantined
+                }
+        return None
+    
+    def get_agent_decisions(self, agent_id):
+        """Get decision history for a specific agent"""
+        decisions = []
+        for action in self.agent_actions:
+            if action['agent'] == f'Agent-{agent_id[-2:]}':
+                decisions.append(action)
+        return decisions
