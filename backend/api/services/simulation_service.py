@@ -5,7 +5,7 @@ from flask import current_app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from simulation import NetworkGraph, NetworkNode, NetworkEdge, NodeType, OperatingSystem
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import random
 
@@ -36,11 +36,13 @@ class SimulationService:
             'last_updated': datetime.now().isoformat()
         }
     
-    def _calculate_threat_level(self):
+    def _calculate_threat_level(self, active_attacks=None):
         """Calculate current threat level"""
-        if len(self.active_attacks) > 3:
+        if active_attacks is None:
+            active_attacks = self.get_active_attacks()
+        if len(active_attacks) > 3:
             return 'High'
-        elif len(self.active_attacks) > 1:
+        elif len(active_attacks) > 1:
             return 'Medium'
         else:
             return 'Low'
@@ -93,6 +95,8 @@ class SimulationService:
         honeypot.is_honeypot = True
         honeypot.security_level = 20  # Honeypots are intentionally vulnerable
         honeypot.value_score = 5  # Moderate value for scoring
+
+        simulation.network.add_node(honeypot)
         
         self.honeypots.append(honeypot.to_dict())
         
@@ -158,11 +162,86 @@ class SimulationService:
     def get_simulation_state(self):
         simulation = current_app.simulation_state
         return {
-            'state': 'Running' if simulation.is_running else 'Paused',
+            'state': simulation,
             'timestamp': datetime.now().isoformat()
         }
     
+    def get_simulation_config(self):
+        return {
+            'network_size': len(current_app.simulation_state.network.nodes),
+            'attack_frequency': 'Variable',
+            'honeypot_count': len(self.honeypots),
+            'traffic_pattern': 'Mixed',
+            'timestamp': datetime.now().isoformat()
+        }
     
+    def update_simulation_config(self, config_data):
+        # In a real implementation, this would update the simulation configuration based on input data
+        return {
+            'network_size': config_data.get('network_size', len(current_app.simulation_state.network.nodes)),
+            'attack_frequency': config_data.get('attack_frequency', 'Variable'),
+            'honeypot_count': config_data.get('honeypot_count', len(self.honeypots)),
+            'traffic_pattern': config_data.get('traffic_pattern', 'Mixed'),
+        }
+    
+    def seed_simulation(self, seed_data):
+        """Seed simulation with specific parameters"""
+        # In a real implementation, this would set up the simulation based on the provided seed data
+        return {
+            'seed': seed_data,
+            'message': 'Simulation seeded with provided parameters',
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    def get_current_metrics(self):
+        simulation = current_app.simulation_state
+        metrics = {
+            'compromised_nodes': sum(1 for node in simulation.network.nodes.values() if node.is_compromised),
+            'quarantined_nodes': sum(1 for node in simulation.network.nodes.values() if node.is_quarantined),
+            'active_attacks': len(simulation.attack_generator.get_active_attacks()),
+            'detected_attacks': len(simulation.attack_generator.get_detected_attacks()),
+            'honeypots_deployed': len(self.honeypots),
+            'traffic_metrics': simulation.traffic_generator.get_traffic_stats(),
+            'attack_metrics': simulation.attack_generator.get_stats(),
+            'threat_level': self._calculate_threat_level(),
+            'timestamp': datetime.now().isoformat()
+        }
+        self.metrics_history.append(metrics)
+        return metrics
+    
+    def get_metrics_history(self, timeframe='1h'):
+        """Get historical metrics based on timeframe"""
+        now = datetime.now()
+        if timeframe.endswith('h'):
+            hours = int(timeframe[:-1])
+            cutoff = now - timedelta(hours=hours)
+        elif timeframe.endswith('d'):
+            days = int(timeframe[:-1])
+            cutoff = now - timedelta(days=days)
+        else:
+            cutoff = now - timedelta(hours=1)  # Default to last hour
+        
+        return [m for m in self.metrics_history if datetime.fromisoformat(m['timestamp']) >= cutoff]
+    
+    def get_traffic_metrics(self):
+        simulation = current_app.simulation_state
+        return simulation.traffic_generator.get_traffic_stats()
+    
+    def get_threat_metrics(self):
+        simulation = current_app.simulation_state
+        return {
+            'threat_level': self._calculate_threat_level(),
+            'active_attacks': len(simulation.attack_generator.get_active_attacks()),
+            'detected_attacks': len(simulation.attack_generator.get_detected_attacks())
+        }
+    
+    def get_performance_metrics(self):
+        simulation = current_app.simulation_state
+        return {
+            'memory_usage': simulation.traffic_generator.get_traffic_stats().get('total_bytes', 0),
+            'latency': simulation.traffic_generator.get_traffic_stats().get('avg_latency_ms', 0),
+            'bandwidth': simulation.traffic_generator.get_traffic_stats().get('current_bandwidth_mbps', 0)
+        }
     
     def get_all_agents(self):
         """Get all agents in the network"""

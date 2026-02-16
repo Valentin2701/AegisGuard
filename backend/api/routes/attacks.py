@@ -27,7 +27,7 @@ def inject_attack():
     """Inject a new attack into the network"""
     data = request.get_json()
     
-    required_fields = ['type', 'target']
+    required_fields = ['type']
     if not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
     
