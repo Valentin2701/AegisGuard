@@ -123,6 +123,15 @@ class SimulationService:
             'current_focus': 'Catching reconnaissance attacks'
         }
     
+    def update_honeypot_strategy(self, strategy_data):
+        # In a real implementation, this would update the strategy based on input data
+        return {
+            'strategy': strategy_data.get('strategy', 'Deceptive Layer'),
+            'deployment': strategy_data.get('deployment', 'Strategic placement at network perimeter'),
+            'types': strategy_data.get('types', ['Low Interaction', 'Medium Interaction', 'High Interaction']),
+            'current_focus': strategy_data.get('current_focus', 'Catching reconnaissance attacks')
+        }
+    
     def control_simulation(self, action, data=None):
         """Control simulation state"""
         simulation = current_app.simulation_state
@@ -152,6 +161,7 @@ class SimulationService:
             'state': 'Running' if simulation.is_running else 'Paused',
             'timestamp': datetime.now().isoformat()
         }
+    
     
     
     def get_all_agents(self):
