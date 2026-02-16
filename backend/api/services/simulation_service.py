@@ -44,6 +44,14 @@ class SimulationService:
             return 'Medium'
         else:
             return 'Low'
+        
+    def get_attack(self, attack_id):
+        """Get specific attack by ID"""
+        simulation = current_app.simulation_state
+        for attack in simulation.attack_generator.get_active_attacks():
+            if attack['id'] == attack_id:
+                return attack
+        return None
     
     def inject_attack(self, attack_type, severity='Medium'):
         """Inject a new attack"""
@@ -66,8 +74,9 @@ class SimulationService:
         simulation = current_app.simulation_state
         return simulation.attack_generator.get_active_attacks()
     
-    def get_agent_actions(self, limit=50):
-        return self.agent_actions[-limit:]
+    def get_attack_history(self, limit=100):
+        return self.attack_history[-limit:]
+    
     
     def deploy_honeypot(self, name, honeypot_type, ip=None, location=None):
         """Deploy a new honeypot"""
