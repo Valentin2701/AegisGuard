@@ -45,11 +45,8 @@ class NetworkService:
     
     def get_node(self, node_id):
         """Get specific node by ID"""
-        nodes = self.get_all_nodes()
-        for node in nodes:
-            if node['id'] == node_id:
-                return node
-        return None
+        simulation = current_app.simulation_state
+        return simulation.network.get_node(node_id).to_dict() if node_id in simulation.network.nodes else None
     
     def get_nodes_by_status(self, status):
         """Get nodes by status"""

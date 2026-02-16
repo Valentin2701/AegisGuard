@@ -11,7 +11,7 @@ class SimulationState:
         self.network.create_small_office_network()
         
         self.traffic_generator = TrafficGenerator(self.network)
-        self.attack_generator = AttackGenerator(self.network, self.traffic_generator)
+        self.attack_generator = AttackGenerator(self.network)
         
         self.is_running = False
         self.start_time = None
@@ -22,7 +22,7 @@ def create_app():
     app = Flask(__name__)
     
     # Configuration
-    app.config['SECRET_KEY'] = 'aegis-guard-secret-key-change-this'
+    app.config['SECRET_KEY'] = '5uper53cr3tk3y22432354'
     app.config['CORS_HEADERS'] = 'Content-Type'
     
     # Enable CORS

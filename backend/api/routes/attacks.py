@@ -33,9 +33,7 @@ def inject_attack():
     
     attack = simulation_service.inject_attack(
         attack_type=data['type'],
-        target=data['target'],
         severity=data.get('severity', 'Medium'),
-        source=data.get('source', 'Unknown')
     )
     
     return jsonify(attack), 201
