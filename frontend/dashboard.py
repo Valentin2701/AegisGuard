@@ -471,7 +471,7 @@ def main():
         
         # Request WebSocket update if connected
         if st.session_state.socket_client.connected:
-            st.session_state.socket_client.request_update(timedelta_seconds=refresh_rate))
+            st.session_state.socket_client.request_update(timedelta_seconds=refresh_rate)
     
     # Top metrics row
     st.header("📊 Network Overview")
