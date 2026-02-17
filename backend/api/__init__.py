@@ -1,3 +1,4 @@
+import random
 from backend.simulation.attack_generator import AttackGenerator
 from backend.simulation.network_graph import NetworkGraph
 from backend.simulation.traffic_generator import TrafficGenerator
@@ -15,6 +16,12 @@ class SimulationState:
         
         self.is_running = False
         self.start_time = None
+
+    def update(self, timedelta):
+        """Advance the simulation by one step"""
+        if self.is_running:
+            self.attack_generator.update(time_delta=timedelta)
+            self.traffic_generator.generate_packets(time_delta=timedelta)
 
 socketio = SocketIO()
 

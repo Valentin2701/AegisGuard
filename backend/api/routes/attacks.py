@@ -18,7 +18,7 @@ def get_attack(attack_id):
     """Get specific attack by ID"""
     attack = simulation_service.get_attack(attack_id)
     if attack:
-        return jsonify(attack), 200
+        return jsonify(attack.to_dict()), 200
     return jsonify({'error': 'Attack not found'}), 404
 
 @attacks_bp.route('/attacks/inject', methods=['POST'])

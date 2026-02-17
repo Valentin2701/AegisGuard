@@ -301,8 +301,8 @@ class SimulationService:
                 decisions.append(action)
         return decisions
     
-    def update_simulation():
+    def update_simulation(self, data):
         """Update simulation state - this would be called periodically to advance the simulation"""
         simulation = current_app.simulation_state
         if simulation.is_running:
-            simulation.update()
+            simulation.update(data.get('timedelta'))

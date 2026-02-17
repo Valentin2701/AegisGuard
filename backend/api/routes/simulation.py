@@ -67,4 +67,8 @@ def handle_disconnect():
 @socketio.on('request_update')
 def handle_update_request(data):
     """Client requests real-time update"""
-    simulation_service.update_simulation(data)
+    try:
+        simulation_service.update_simulation(data)
+    except Exception as e:
+        print(f"Error in handle_update_request: {e}")
+        emit('error', {'message': str(e)})
