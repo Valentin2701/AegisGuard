@@ -130,9 +130,9 @@ class SocketIOClient:
         if self.connected:
             self.sio.disconnect()
     
-    def request_update(self):
+    def request_update(self, timedelta_seconds=5):
         if self.connected:
-            self.sio.emit('request_update', {})
+            self.sio.emit('request_update', {'timedelta': timedelta_seconds})
 
 # ============ VISUALIZATION FUNCTIONS ============
 def create_network_graph(nodes):
@@ -471,7 +471,7 @@ def main():
         
         # Request WebSocket update if connected
         if st.session_state.socket_client.connected:
-            st.session_state.socket_client.request_update()
+            st.session_state.socket_client.request_update(timedelta_seconds=refresh_rate))
     
     # Top metrics row
     st.header("📊 Network Overview")
@@ -607,21 +607,57 @@ def main():
         st.header("⚠️ Active Attacks")
         
         if attacks:
+            # Convert attacks to DataFrame
             attack_df = pd.DataFrame(attacks)
-            
-            # Color code severity
+
+            # Color code severity based on float values
             def color_severity(val):
-                colors = {'Low': 'green', 'Medium': 'orange', 'High': 'red', 'Critical': 'darkred'}
-                return f'color: {colors.get(val, "black")}; font-weight: bold'
-            
-            styled_df = attack_df.style.map(color_severity, subset=['severity'])
+                """
+                Color severity based on float value between 0 and 1
+                0.0 - 0.3: Low (green)
+                0.3 - 0.6: Medium (orange)
+                0.6 - 0.9: High (red)
+                0.9 - 1.0: Critical (darkred)
+                """
+                try:
+                    # Convert to float if it's a string representation of a number
+                    if isinstance(val, str):
+                        val = float(val)
+                except ValueError:
+                    return 'color: black; font-weight: bold'
+        
+                    # Handle float values
+                    if isinstance(val, (int, float)):
+                        if val < 0.3:
+                            return 'color: #2ecc71; font-weight: bold'  # Green
+                        elif val < 0.6:
+                            return 'color: #f39c12; font-weight: bold'  # Orange
+                        elif val < 0.9:
+                            return 'color: #e74c3c; font-weight: bold'  # Red
+                        else:
+                            return 'color: #8b0000; font-weight: bold'  # Dark Red
+                    else:
+                        return 'color: black; font-weight: bold'
+                except:
+                    return 'color: black; font-weight: bold'
+
+            # Apply styling
+            styled_df = attack_df.style.map(color_severity, subset=['intensity'])
+
+            # Display the dataframe
             st.dataframe(
                 styled_df,
                 column_config={
                     "type": "Attack Type",
                     "source": "Source",
                     "target": "Target",
-                    "severity": "Severity",
+                    "severity": st.column_config.NumberColumn(
+                        "Severity",
+                        help="Threat severity (0-1)",
+                        format="%.2f",  # Show as decimal with 2 places
+                        min_value=0,
+                        max_value=1
+                    ),
                     "status": "Status",
                     "agent_action": "Action"
                 },
@@ -639,7 +675,7 @@ def main():
                 timeline_data.append({
                     "Time": attack.get('started', 'N/A'),
                     "Event": f"{attack.get('type')} on {attack.get('target')}",
-                    "Severity": attack.get('severity', 'N/A')
+                    "Severity": attack.get('intensity', 'N/A')
                 })
             
             if timeline_data:
