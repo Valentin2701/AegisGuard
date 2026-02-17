@@ -55,7 +55,7 @@ class SimulationService:
                 return attack
         return None
     
-    def inject_attack(self, attack_type, severity='Medium'):
+    def inject_attack(self, attack_type, severity=0.6):
         """Inject a new attack"""
         simulation = current_app.simulation_state
         attack = simulation.attack_generator.generate_specific_attack(attack_type, severity)
@@ -78,7 +78,14 @@ class SimulationService:
     
     def get_attack_history(self, limit=100):
         return self.attack_history[-limit:]
-    
+
+    def _generate_mac_address(self):
+        """Generate a random MAC address"""
+        return "02:00:00:%02x:%02x:%02x" % (
+            random.randint(0, 255),
+            random.randint(0, 255),
+            random.randint(0, 255)
+        )    
     
     def deploy_honeypot(self, name, honeypot_type, ip=None, location=None):
         """Deploy a new honeypot"""
@@ -87,11 +94,7 @@ class SimulationService:
         if not ip:
             ip = f"192.168.1.{random.randint(200, 250)}"
         
-        honeypot = NetworkNode()
-        honeypot.name = name
-        honeypot.node_type = NodeType.HONEYPOT
-        honeypot.ip_address = ip
-        honeypot.os = OperatingSystem.LINUX
+        honeypot = NetworkNode(name=name, node_type=NodeType.HONEYPOT, ip_address=ip, os=OperatingSystem.LINUX, mac_address=self._generate_mac_address(), id=str(uuid.uuid4()))
         honeypot.is_honeypot = True
         honeypot.security_level = 20  # Honeypots are intentionally vulnerable
         honeypot.value_score = 5  # Moderate value for scoring
@@ -100,7 +103,7 @@ class SimulationService:
         
         self.honeypots.append(honeypot.to_dict())
         
-        return honeypot
+        return honeypot.to_dict()
     
     def trigger_honeypot(self, honeypot_id, data):
         """Record a honeypot trigger"""
@@ -114,6 +117,16 @@ class SimulationService:
                 }
                 honeypot['attacks_caught'].append(attack_info)
                 return {'success': True, 'honeypot': honeypot}
+        return {'success': False, 'error': 'Honeypot not found'}
+    
+    def remove_honeypot(self, honeypot_id):
+        """Remove a honeypot"""
+        simulation = current_app.simulation_state
+        for honeypot in self.honeypots:
+            if honeypot['id'] == honeypot_id:
+                simulation.network.remove_node(honeypot_id)
+                self.honeypots.remove(honeypot)
+                return {'success': True, 'message': 'Honeypot removed'}
         return {'success': False, 'error': 'Honeypot not found'}
     
     def get_all_honeypots(self):
@@ -162,7 +175,7 @@ class SimulationService:
     def get_simulation_state(self):
         simulation = current_app.simulation_state
         return {
-            'state': simulation,
+            'state': 'running' if simulation.is_running else 'paused',
             'timestamp': datetime.now().isoformat()
         }
     
@@ -287,3 +300,9 @@ class SimulationService:
             if action['agent'] == f'Agent-{agent_id[-2:]}':
                 decisions.append(action)
         return decisions
+    
+    def update_simulation():
+        """Update simulation state - this would be called periodically to advance the simulation"""
+        simulation = current_app.simulation_state
+        if simulation.is_running:
+            simulation.update()

@@ -67,5 +67,4 @@ def handle_disconnect():
 @socketio.on('request_update')
 def handle_update_request(data):
     """Client requests real-time update"""
-    state = simulation_service.get_simulation_state()
-    emit('simulation_update', state)
+    simulation_service.update_simulation(data)

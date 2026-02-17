@@ -3,7 +3,6 @@ import os
 from flask import current_app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from network_graph import NetworkGraph
 from datetime import datetime
 import uuid
 
