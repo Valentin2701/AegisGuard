@@ -18,7 +18,7 @@ def get_attack(attack_id):
     """Get specific attack by ID"""
     attack = simulation_service.get_attack(attack_id)
     if attack:
-        return jsonify(attack), 200
+        return jsonify(attack.to_dict()), 200
     return jsonify({'error': 'Attack not found'}), 404
 
 @attacks_bp.route('/attacks/inject', methods=['POST'])
@@ -27,18 +27,18 @@ def inject_attack():
     """Inject a new attack into the network"""
     data = request.get_json()
     
-    required_fields = ['type', 'target']
+    required_fields = ['type']
     if not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
     
+    severity_enum = {'Low': 0.3, 'Medium': 0.6, 'High': 0.8, 'Critical': 1.0}
+    
     attack = simulation_service.inject_attack(
         attack_type=data['type'],
-        target=data['target'],
-        severity=data.get('severity', 'Medium'),
-        source=data.get('source', 'Unknown')
+        severity=severity_enum.get(data.get('severity', 'Medium'), 0.6)
     )
     
-    return jsonify(attack), 201
+    return jsonify(attack.to_dict()), 201
 
 @attacks_bp.route('/attacks/<attack_id>/mitigate', methods=['POST'])
 @handle_errors

@@ -1,6 +1,27 @@
+import random
+from backend.simulation.attack_generator import AttackGenerator
+from backend.simulation.network_graph import NetworkGraph
+from backend.simulation.traffic_generator import TrafficGenerator
 from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
+
+class SimulationState:
+    def __init__(self):
+        self.network = NetworkGraph()
+        self.network.create_small_office_network()
+        
+        self.traffic_generator = TrafficGenerator(self.network)
+        self.attack_generator = AttackGenerator(self.network)
+        
+        self.is_running = False
+        self.start_time = None
+
+    def update(self, timedelta):
+        """Advance the simulation by one step"""
+        if self.is_running:
+            self.attack_generator.update(time_delta=timedelta)
+            self.traffic_generator.generate_packets(time_delta=timedelta)
 
 socketio = SocketIO()
 
@@ -8,7 +29,7 @@ def create_app():
     app = Flask(__name__)
     
     # Configuration
-    app.config['SECRET_KEY'] = 'aegis-guard-secret-key-change-this'
+    app.config['SECRET_KEY'] = '5uper53cr3tk3y22432354'
     app.config['CORS_HEADERS'] = 'Content-Type'
     
     # Enable CORS
@@ -16,6 +37,9 @@ def create_app():
     
     # Initialize SocketIO
     socketio.init_app(app, cors_allowed_origins="*")
+
+    # Initialize simulation state
+    app.simulation_state = SimulationState()
     
     # Register blueprints
     from .routes.network import network_bp
