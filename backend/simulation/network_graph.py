@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import random
 import string
 
-from simulation.config.network_config import NetworkConfig
+from backend.simulation.config.network_config import NetworkConfig
 from .network_node import NetworkNode, NodeType, OperatingSystem
 from .network_edge import NetworkEdge, Protocol
 

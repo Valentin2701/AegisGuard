@@ -440,7 +440,7 @@ class AttackGenerator:
         self.stats["total_attacks"] += 1
         self.stats["active_attacks"] += 1
         
-        print(f"⚔️  Attack launched: {attack_type.value} "
+        print(f"⚔️  Attack launched: {attack_type} "
               f"from {source.name} to {target.name} "
               f"(intensity: {intensity:.2f})")
         
