@@ -15,13 +15,17 @@ class NetworkService:
         total_nodes = len(simulation.network.nodes)
         compromised_nodes = len([n for n in simulation.network.nodes.values() if n.is_compromised])
         quarantined_nodes = len([n for n in simulation.network.nodes.values() if n.is_quarantined])
-        healthy_nodes = total_nodes - compromised_nodes - quarantined_nodes
+        attacks = simulation.attack_generator.get_active_attacks()
+        threat_level = sum([a.get('intensity', 0) for a in attacks]) / (len(attacks) + 1)
         
         return {
             'total_nodes': total_nodes,
+            'active_attacks': len(attacks),
             'compromised_nodes': compromised_nodes,
             'quarantined_nodes': quarantined_nodes,
-            'healthy_nodes': healthy_nodes,
+            'honeypots_deployed': len([n for n in simulation.network.nodes.values() if n.node_type.value == 'HONEYPOT' and n.is_honeypot]),
+            'threat_level': threat_level,
+            'total_traffic': simulation.traffic_generator.get_traffic_stats().get('total_bytes', 0),
             'timestamp': datetime.now().isoformat()
         }
     
