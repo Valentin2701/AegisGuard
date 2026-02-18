@@ -99,6 +99,19 @@ class SimulationService:
         honeypot.security_level = 20  # Honeypots are intentionally vulnerable
         honeypot.value_score = 5  # Moderate value for scoring
 
+        if honeypot_type == 'Low Interaction':
+            honeypot.services = ['http']
+            honeypot.cpu_usage = random.uniform(1, 5)
+            honeypot.memory_usage = random.uniform(1, 5)
+        elif honeypot_type == 'Medium Interaction':
+            honeypot.services = ['http', 'ssh']
+            honeypot.cpu_usage = random.uniform(5, 15)
+            honeypot.memory_usage = random.uniform(5, 15)
+        elif honeypot_type == 'High Interaction':
+            honeypot.services = ['http', 'ssh', 'ftp', 'smtp']
+            honeypot.cpu_usage = random.uniform(15, 30)
+            honeypot.memory_usage = random.uniform(15, 30)
+
         simulation.network.add_node(honeypot)
         
         self.honeypots.append(honeypot.to_dict())
