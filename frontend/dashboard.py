@@ -408,10 +408,14 @@ def main():
         
         # Attack injection
         st.subheader("🎯 Inject Attack")
+        attacks = ["Port Scan", "DDoS", "Malware", "ARP Spoofing", "SQL Injection", "Brute Force", "XSS", "CSRF", "Zero-Day"]
         attack_type = st.selectbox(
             "Attack type",
-            ["Port Scan", "DDoS", "Malware", "Brute Force", "Man-in-the-Middle", "Ransomware"]
+            attacks
         )
+        index = attacks.index(attack_type)
+        attack_types = ['port_scan', 'ddos', 'malware_spread', 'arp_spoofing', 'sql_injection', 'brute_force', 'xss', 'csrf', 'zero_day']
+        attack_type = attack_types[index]
         
         # Get nodes for target selection
         nodes = st.session_state.api_client.get('/network/nodes') or []

@@ -403,9 +403,10 @@ class AttackGenerator:
         
         return self.generate_specific_attack(attack_type, intensity)
     
-    def generate_specific_attack(self, attack_type: AttackType, 
+    def generate_specific_attack(self, attack_type, 
                                 intensity: float = 0.7) -> Optional[Attack]:
         """Generate a specific type of attack"""
+        attack_type = AttackType(attack_type) if isinstance(attack_type, str) else attack_type
         nodes = list(self.network.nodes.values())
         if len(nodes) < 2:
             return None
