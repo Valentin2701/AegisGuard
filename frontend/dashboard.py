@@ -580,7 +580,11 @@ def main():
         if nodes:
             status_counts = {}
             for node in nodes:
-                status = node.get('status', 'Unknown')
+                status = 'Healthy'
+                if node.get('is_quarantined'):
+                    status = 'Quarantined'
+                elif node.get('is_compromised'):
+                    status = 'Compromised'
                 status_counts[status] = status_counts.get(status, 0) + 1
             
             status_df = pd.DataFrame({
@@ -596,7 +600,6 @@ def main():
                     'Compromised': '#e74c3c',
                     'Quarantined': '#f39c12',
                     'Monitoring': '#3498db',
-                    'Under Attack': '#e67e22'
                 }
             )
             fig_pie.update_layout(height=200, margin=dict(l=20, r=20, t=30, b=20))
@@ -630,19 +633,17 @@ def main():
                 except ValueError:
                     return 'color: black; font-weight: bold'
         
-                    # Handle float values
-                    if isinstance(val, (int, float)):
-                        if val < 0.3:
-                            return 'color: #2ecc71; font-weight: bold'  # Green
-                        elif val < 0.6:
-                            return 'color: #f39c12; font-weight: bold'  # Orange
-                        elif val < 0.9:
-                            return 'color: #e74c3c; font-weight: bold'  # Red
-                        else:
-                            return 'color: #8b0000; font-weight: bold'  # Dark Red
+                # Handle float values
+                if isinstance(val, (int, float)):
+                    if val < 0.3:
+                        return 'color: #2ecc71; font-weight: bold'  # Green
+                    elif val < 0.6:
+                        return 'color: #f39c12; font-weight: bold'  # Orange
+                    elif val < 0.9:
+                        return 'color: #e74c3c; font-weight: bold'  # Red
                     else:
-                        return 'color: black; font-weight: bold'
-                except:
+                        return 'color: #8b0000; font-weight: bold'  # Dark Red
+                else:
                     return 'color: black; font-weight: bold'
 
             # Apply styling
@@ -677,7 +678,7 @@ def main():
             timeline_data = []
             for attack in attacks[:5]:
                 timeline_data.append({
-                    "Time": attack.get('started', 'N/A'),
+                    "Time": attack.get('start_time', 'N/A'),
                     "Event": f"{attack.get('type')} on {attack.get('target')}",
                     "Severity": attack.get('intensity', 'N/A')
                 })
