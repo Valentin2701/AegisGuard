@@ -471,7 +471,7 @@ def main():
         attacks = st.session_state.api_client.get('/attacks') or []
         agent_actions = st.session_state.api_client.get('/agents/actions') or []
         honeypots = st.session_state.api_client.get('/honeypots') or []
-        metrics = st.session_state.api_client.get('/metrics/history?timeframe=1h') or {}
+        metrics = st.session_state.api_client.get('/metrics') or {}
         
         # Request WebSocket update if connected
         if st.session_state.socket_client.connected:
@@ -513,8 +513,8 @@ def main():
         )
     
     with col5:
-        threat_level = network_status.get('threat_level', 'Low')
-        threat_value = {'Low': 20, 'Medium': 50, 'High': 80}.get(threat_level, 30)
+        threat_value = network_status.get('threat_level', 30)
+        threat_level = int(threat_value * 100) if isinstance(threat_value, (int, float)) else 30
         st.metric(
             "Threat Level",
             threat_level,
@@ -537,44 +537,44 @@ def main():
             st.info("No network data available. Make sure the backend is running.")
         
         # Legend
-        cols = st.columns(6)
+        cols = st.columns(5)
         legend_items = [
             ("🟢 Healthy", "#2ecc71"),
             ("🔴 Compromised", "#e74c3c"),
             ("🟠 Quarantined", "#f39c12"),
             ("🟣 Honeypot", "#9b59b6"),
             ("🔵 Monitoring", "#3498db"),
-            ("🔥 Under Attack", "#e67e22")
         ]
         for i, (text, color) in enumerate(legend_items):
-            with cols[i % 6]:
+            with cols[i % 5]:
                 st.markdown(f"<span style='color:{color}'>●</span> **{text}**", unsafe_allow_html=True)
     
     with col_stats:
         st.header("📈 Live Metrics")
+        threat_enum = "High" if threat_level > 66 else "Medium" if threat_level > 33 else "Low"
         
         # Threat gauge
         threat_gauge = create_threat_gauge(
-            network_status.get('threat_level', 'Low'),
-            threat_value
+            threat_enum,
+            threat_level
         )
         st.plotly_chart(threat_gauge, use_container_width=True)
         
-        # Traffic graph
-        if metrics and 'traffic_history' in metrics:
-            traffic_df = pd.DataFrame({
-                'Time': metrics['traffic_history'].get('times', [])[-20:],
-                'Traffic (Mbps)': metrics['traffic_history'].get('values', [])[-20:]
-            })
+        # Traffic graph  
+        metrics_history = st.session_state.api_client.get('/metrics/history?timeframe=3m') or []
+        traffic_df = pd.DataFrame({
+            'Time': [m.get('timestamp', '') for m in metrics_history],
+            'Traffic (Mbps)': [m.get('traffic_metrics', {}).get('current_bandwidth_mbps', 0) for m in metrics_history]
+        })
             
-            if not traffic_df.empty:
-                fig_traffic = px.line(
-                    traffic_df, x='Time', y='Traffic (Mbps)',
-                    title='Network Traffic',
-                    color_discrete_sequence=['#3498db']
-                )
-                fig_traffic.update_layout(height=200, margin=dict(l=20, r=20, t=30, b=20))
-                st.plotly_chart(fig_traffic, use_container_width=True)
+        if not traffic_df.empty:
+            fig_traffic = px.line(
+                traffic_df, x='Time', y='Traffic (Mbps)',
+                title='Network Traffic',
+                color_discrete_sequence=['#3498db']
+            )
+            fig_traffic.update_layout(height=200, margin=dict(l=20, r=20, t=30, b=20))
+            st.plotly_chart(fig_traffic, use_container_width=True)
         
         # Node distribution
         if nodes:

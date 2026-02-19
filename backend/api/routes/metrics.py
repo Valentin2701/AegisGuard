@@ -16,7 +16,7 @@ def get_metrics():
 @handle_errors
 def get_metrics_history():
     """Get historical metrics"""
-    timeframe = request.args.get('timeframe', default='1h')
+    timeframe = request.args.get('timeframe', default='3m')
     metrics = simulation_service.get_metrics_history(timeframe)
     return jsonify(metrics), 200
 

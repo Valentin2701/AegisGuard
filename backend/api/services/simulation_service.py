@@ -238,14 +238,14 @@ class SimulationService:
     def get_metrics_history(self, timeframe='1h'):
         """Get historical metrics based on timeframe"""
         now = datetime.now()
-        if timeframe.endswith('h'):
+        if timeframe.endswith('m'):
+            minutes = int(timeframe[:-1])
+            cutoff = now - timedelta(minutes=minutes)
+        elif timeframe.endswith('h'):
             hours = int(timeframe[:-1])
             cutoff = now - timedelta(hours=hours)
-        elif timeframe.endswith('d'):
-            days = int(timeframe[:-1])
-            cutoff = now - timedelta(days=days)
         else:
-            cutoff = now - timedelta(hours=1)  # Default to last hour
+            cutoff = now - timedelta(minutes=3)  # Default to last hour
         
         return [m for m in self.metrics_history if datetime.fromisoformat(m['timestamp']) >= cutoff]
     

@@ -150,6 +150,12 @@ class TrafficGenerator:
         if not source_node or not dest_node:
             return None
         
+        if source_id == destination_id:
+            return None  # No self-connections
+        
+        if not pattern:
+            pattern = random.choice(list(TrafficPattern))
+        
         # Determine protocol based on pattern
         if pattern.protocol == "TCP":
             protocol = Protocol.TCP
@@ -418,7 +424,7 @@ class TrafficGenerator:
         )
         
         # Clean up old connections (simulate connection timeout)
-        self._cleanup_old_connections()
+        self._cleanup_old_connections(time_delta * 10)  # Scale timeout with time delta
         
         return new_packets
     
