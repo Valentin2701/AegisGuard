@@ -79,6 +79,14 @@ class NetworkService:
             return [n for n in nodes if n['is_honeypot']]
         else:
             return []
+        
+    def get_all_edges(self):
+        simulation = current_app.simulation_state
+        return [e.to_dict() for e in simulation.network.edges.values()]
+    
+    def get_all_connections(self):
+        simulation = current_app.simulation_state
+        return [c.to_dict() for c in simulation.traffic_generator.connections.values()]
     
     def get_quarantined_nodes(self):
         """Get all quarantined nodes"""

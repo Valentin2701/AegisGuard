@@ -19,6 +19,20 @@ def get_all_nodes():
     nodes = network_service.get_all_nodes()
     return jsonify(nodes), 200
 
+@network_bp.route('/network/edges', methods=['GET'])
+@handle_errors
+def get_all_edges():
+    """Get all network edges"""
+    edges = network_service.get_all_edges()
+    return jsonify(edges), 200
+
+@network_bp.route('/network/connections', methods=['GET'])
+@handle_errors
+def get_all_connections():
+    """Get all active connections"""
+    connections = network_service.get_all_connections()
+    return jsonify(connections), 200
+
 @network_bp.route('/network/nodes/<node_id>', methods=['GET'])
 @handle_errors
 def get_node(node_id):
