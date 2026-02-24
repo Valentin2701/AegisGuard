@@ -71,6 +71,26 @@ class Connection:
     def get_flow_id(self) -> str:
         """Get 5-tuple flow identifier"""
         return self.flow_id
+    
+    def to_dict(self):
+        return {
+            "conn_id": self.conn_id,
+            "source_id": self.source_id,
+            "destination_id": self.destination_id,
+            "source_ip": self.source_ip,
+            "dest_ip": self.dest_ip,
+            "protocol": self.protocol.value,
+            "source_port": self.source_port,
+            "dest_port": self.dest_port,
+            "pattern": self.pattern.name,
+            "tcp_state": self.tcp_state,
+            "packets_sent": self.packets_sent,
+            "bytes_sent": self.bytes_sent,
+            "start_time": self.start_time.isoformat(),
+            "last_activity": self.last_activity.isoformat(),
+            "qos_class": self.qos_class.value,
+            "dscp": self.dscp
+        }
 
 class TrafficGenerator:
     """Generates realistic network traffic with flow tracking"""
@@ -142,20 +162,20 @@ class TrafficGenerator:
         return random.randint(*port_range)
     
     def create_connection(self, source_id: str, destination_id: str,
-                         pattern: TrafficPattern) -> Optional[Connection]:
+                     pattern: TrafficPattern) -> Optional[Connection]:
         """Create a realistic network connection"""
         source_node = self.network.get_node(source_id)
         dest_node = self.network.get_node(destination_id)
-        
+    
         if not source_node or not dest_node:
             return None
-        
+    
         if source_id == destination_id:
             return None  # No self-connections
-        
+    
         if not pattern:
             pattern = random.choice(list(TrafficPattern))
-        
+    
         # Determine protocol based on pattern
         if pattern.protocol == "TCP":
             protocol = Protocol.TCP
@@ -168,10 +188,13 @@ class TrafficGenerator:
                 list(self.protocol_distribution.keys()),
                 weights=list(self.protocol_distribution.values())
             )[0]
-        
+    
+        # Determine QoS class based on protocol using probability distribution
+        qos_class = self._determine_qos_class(protocol, pattern)
+    
         # Allocate ports
         source_port = self._allocate_port(source_id)
-        
+    
         # Determine destination port based on services
         dest_port = None
         if dest_node.services:
@@ -198,8 +221,10 @@ class TrafficGenerator:
             protocol=protocol,
             source_port=source_port,
             dest_port=dest_port,
-            pattern=pattern
+            pattern=pattern,
         )
+
+        connection.qos_class = qos_class
         
         self.connections[conn_id] = connection
         self.active_flows.add(connection.get_flow_id())
@@ -216,6 +241,114 @@ class TrafficGenerator:
             edge.traffic_volume += pattern.packet_rate * pattern.avg_packet_size / 8
         
         return connection
+
+    def _determine_qos_class(self, protocol: Protocol, pattern: TrafficPattern) -> QoSClass:
+        """Determine QoS class based on protocol using probability distribution"""
+        
+        # QoS probability distributions by protocol
+        qos_distributions = {
+            Protocol.TCP: {
+                QoSClass.BEST_EFFORT: 0.30,    # General web browsing
+                QoSClass.STANDARD: 0.35,        # Business applications
+                QoSClass.BACKGROUND: 0.20,      # File transfers
+                QoSClass.CRITICAL: 0.10,        # Database transactions
+                QoSClass.VIDEO: 0.03,            # Streaming over TCP (less common)
+                QoSClass.VOICE: 0.01,            # Rare
+                QoSClass.NETWORK_CONTROL: 0.01   # Routing protocols over TCP
+            },
+            
+            Protocol.UDP: {
+                QoSClass.BEST_EFFORT: 0.20,      # General UDP traffic
+                QoSClass.STANDARD: 0.15,          # Business apps over UDP
+                QoSClass.VIDEO: 0.25,              # Streaming media
+                QoSClass.VOICE: 0.30,              # VoIP, real-time comms
+                QoSClass.BACKGROUND: 0.05,        # Bulk UDP transfers
+                QoSClass.CRITICAL: 0.03,           # Critical UDP services
+                QoSClass.NETWORK_CONTROL: 0.02     # Routing protocols over UDP
+            },
+            
+            Protocol.ICMP: {
+                QoSClass.BEST_EFFORT: 0.40,
+                QoSClass.NETWORK_CONTROL: 0.40,   # Network diagnostics
+                QoSClass.CRITICAL: 0.20            # Critical ICMP (like ping monitoring)
+            },
+            
+            Protocol.DNS: {
+                QoSClass.BEST_EFFORT: 0.20,
+                QoSClass.STANDARD: 0.50,           # Normal DNS queries
+                QoSClass.CRITICAL: 0.30             # Critical DNS infrastructure
+            },
+            
+            Protocol.HTTP: {
+                QoSClass.BEST_EFFORT: 0.50,        # General web traffic
+                QoSClass.STANDARD: 0.40,            # Business web apps
+                QoSClass.BACKGROUND: 0.10           # Web downloads
+            },
+            
+            Protocol.HTTPS: {
+                QoSClass.BEST_EFFORT: 0.30,
+                QoSClass.STANDARD: 0.50,            # Secure business apps
+                QoSClass.CRITICAL: 0.15,            # Critical secure services
+                QoSClass.BACKGROUND: 0.05
+            },
+            
+            Protocol.TLS: {
+                QoSClass.BEST_EFFORT: 0.30,
+                QoSClass.STANDARD: 0.45,
+                QoSClass.CRITICAL: 0.20,
+                QoSClass.BACKGROUND: 0.05
+            },
+            
+            Protocol.SSH: {
+                QoSClass.STANDARD: 0.30,
+                QoSClass.CRITICAL: 0.40,           # Administrative access
+                QoSClass.NETWORK_CONTROL: 0.20,     # Network device management
+                QoSClass.BEST_EFFORT: 0.10
+            },
+            
+            Protocol.FTP: {
+                QoSClass.BACKGROUND: 0.70,          # File transfers
+                QoSClass.BEST_EFFORT: 0.20,
+                QoSClass.STANDARD: 0.10
+            },
+            
+            Protocol.SMTP: {
+                QoSClass.BACKGROUND: 0.60,          # Email typically background
+                QoSClass.STANDARD: 0.30,
+                QoSClass.BEST_EFFORT: 0.10
+            },
+            
+            Protocol.POP3: {
+                QoSClass.BACKGROUND: 0.50,
+                QoSClass.STANDARD: 0.30,
+                QoSClass.BEST_EFFORT: 0.20
+            },
+            
+            Protocol.IMAP: {
+                QoSClass.BACKGROUND: 0.40,
+                QoSClass.STANDARD: 0.40,
+                QoSClass.BEST_EFFORT: 0.20
+            }
+        }
+        
+        # Get distribution for this protocol, or use default if not defined
+        distribution = qos_distributions.get(protocol, {
+            QoSClass.BEST_EFFORT: 0.50,
+            QoSClass.STANDARD: 0.30,
+            QoSClass.BACKGROUND: 0.10,
+            QoSClass.CRITICAL: 0.05,
+            QoSClass.VIDEO: 0.02,
+            QoSClass.VOICE: 0.02,
+            QoSClass.NETWORK_CONTROL: 0.01
+        })
+        
+        # Select QoS class based on probability distribution
+        qos_class = random.choices(
+            list(distribution.keys()),
+            weights=list(distribution.values())
+        )[0]
+        
+        return qos_class
     
     def _generate_tcp_packets(self, connection: Connection, 
                              time_delta: float) -> List[Packet]:

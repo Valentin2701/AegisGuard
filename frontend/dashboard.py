@@ -135,8 +135,14 @@ class SocketIOClient:
             self.sio.emit('request_update', {'timedelta': timedelta_seconds})
 
 # ============ VISUALIZATION FUNCTIONS ============
-def create_network_graph(nodes):
-    """Create an interactive network graph using Plotly"""
+def create_network_graph(nodes, edges=None, connections=None):
+    """Create an interactive network graph using Plotly
+    
+    Args:
+        nodes: List of NetworkNode objects or node dictionaries
+        edges: List of NetworkEdge objects representing network links
+        connections: List of Connection objects representing active data flows
+    """
     
     if not nodes:
         fig = go.Figure()
@@ -146,48 +152,231 @@ def create_network_graph(nodes):
         )
         return fig
     
+    # Convert nodes to dictionaries if they're objects
+    node_dicts = []
+    for node in nodes:
+        if hasattr(node, 'to_dict'):
+            node_dict = node.to_dict()
+        elif isinstance(node, dict):
+            node_dict = node
+        else:
+            # Try to convert using __dict__
+            node_dict = {k: v for k, v in node.__dict__.items() 
+                        if not k.startswith('_') and not callable(v)}
+        
+        # Ensure we have all required fields
+        node_dict.setdefault('id', getattr(node, 'id', f"node-{len(node_dicts)}"))
+        node_dict.setdefault('name', getattr(node, 'name', node_dict['id']))
+        node_dict.setdefault('status', 'Healthy')
+        node_dict.setdefault('is_compromised', getattr(node, 'is_compromised', False))
+        node_dict.setdefault('is_quarantined', getattr(node, 'is_quarantined', False))
+        node_dict.setdefault('is_honeypot', getattr(node, 'is_honeypot', False))
+        node_dicts.append(node_dict)
+    
     # Create node positions using force-directed layout
     np.random.seed(42)
-    n_nodes = len(nodes)
+    n_nodes = len(node_dicts)
     
-    # Use circular layout
+    # Use circular layout for base positions
     angles = np.linspace(0, 2*np.pi, n_nodes, endpoint=False)
     radius = 3
     x_positions = radius * np.cos(angles)
     y_positions = radius * np.sin(angles)
     
     # Assign positions
-    for i, node in enumerate(nodes):
+    node_positions = {}
+    for i, node in enumerate(node_dicts):
         node['x'] = x_positions[i]
         node['y'] = y_positions[i]
+        node_positions[node['id']] = (x_positions[i], y_positions[i])
     
-    # Create edges
-    edge_x = []
-    edge_y = []
-    connections_added = set()
+    # ============ EDGE TRACES (Physical/Topology Connections) ============
+    edge_traces = []
     
-    for i, node in enumerate(nodes):
-        for conn in node.get('connections', []):
-            if isinstance(conn, (int, str)):
-                try:
-                    conn_idx = int(conn) - 1 if isinstance(conn, str) and conn.startswith('node-') else int(conn)
-                    if 0 <= conn_idx < n_nodes and conn_idx != i:
-                        conn_key = tuple(sorted([i, conn_idx]))
-                        if conn_key not in connections_added:
-                            connections_added.add(conn_key)
-                            edge_x.extend([node['x'], nodes[conn_idx]['x'], None])
-                            edge_y.extend([node['y'], nodes[conn_idx]['y'], None])
-                except (ValueError, IndexError):
-                    continue
+    if edges:
+        # Regular edges (gray, solid lines)
+        edge_x = []
+        edge_y = []
+        edge_hover_texts = []
+        edge_ids = []
+        
+        for edge in edges:
+            # Convert edge to dict if it's an object
+            if hasattr(edge, 'to_dict'):
+                edge_dict = edge.to_dict()
+            elif isinstance(edge, dict):
+                edge_dict = edge
+            else:
+                edge_dict = {k: v for k, v in edge.__dict__.items() 
+                           if not k.startswith('_') and not callable(v)}
+            
+            source_id = edge_dict.get('source') or edge_dict.get('source_id')
+            target_id = edge_dict.get('target') or edge_dict.get('target_id')
+            
+            if source_id in node_positions and target_id in node_positions:
+                x1, y1 = node_positions[source_id]
+                x2, y2 = node_positions[target_id]
+                
+                edge_x.extend([x1, x2, None])
+                edge_y.extend([y1, y2, None])
+                
+                # Create hover text
+                bandwidth = edge_dict.get('bandwidth', 'N/A')
+                latency = edge_dict.get('latency', 'N/A')
+                protocol = edge_dict.get('current_protocol', 'Unknown')
+                encryption = edge_dict.get('encryption_level', 0)
+                monitored = "✓" if edge_dict.get('is_monitored') else "✗"
+                security_score = edge_dict.get('security_score', 0)
+                
+                hover_text = (
+                    f"<b>Network Edge: {source_id} → {target_id}</b><br>"
+                    f"Bandwidth: {bandwidth} Mbps<br>"
+                    f"Latency: {latency} ms<br>"
+                    f"Protocol: {protocol}<br>"
+                    f"Encryption: {encryption}%<br>"
+                    f"Monitored: {monitored}<br>"
+                    f"Security Score: {security_score:.2f}"
+                )
+                edge_hover_texts.append(hover_text)
+                edge_ids.append(edge_dict.get('id', ''))
+        
+        if edge_x:
+            edge_trace = go.Scatter(
+                x=edge_x, y=edge_y,
+                mode='lines',
+                line=dict(color='rgba(150,150,150,0.6)', width=2, dash=None),
+                hoverinfo='text',
+                text=edge_hover_texts,
+                name='Network Links',
+                legendgroup='edges',
+                showlegend=True
+            )
+            edge_traces.append(edge_trace)
     
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        mode='lines',
-        line=dict(color='rgba(100,100,255,0.3)', width=1.5),
-        hoverinfo='none',
-        name='Connections'
-    )
+    # ============ CONNECTION TRACES (Active Data Flows) ============
+    connection_traces = []
     
+    if connections:
+        # Color map for different protocols
+        protocol_colors = {
+            'http': 'rgba(52, 152, 219, 0.8)',   # Blue
+            'https': 'rgba(46, 204, 113, 0.8)',  # Green
+            'tcp': 'rgba(155, 89, 182, 0.8)',    # Purple
+            'udp': 'rgba(241, 196, 15, 0.8)',    # Yellow
+            'tls': 'rgba(230, 126, 34, 0.8)',    # Orange
+            'ipsec': 'rgba(231, 76, 60, 0.8)',    # Red
+            'ssh': 'rgba(52, 73, 94, 0.8)',       # Dark Blue
+            'ftp': 'rgba(149, 165, 166, 0.8)',    # Gray
+        }
+        
+        # Group connections by protocol for separate traces
+        connections_by_protocol = {}
+        
+        for conn in connections:
+            # Convert connection to dict if it's an object
+            if hasattr(conn, '__dict__'):
+                protocol = getattr(conn, 'protocol', None)
+                source_id = getattr(conn, 'source_id', None) or getattr(conn, 'source', None)
+                dest_id = getattr(conn, 'destination_id', None) or getattr(conn, 'destination', None)
+                
+                # Get additional data
+                bytes_sent = getattr(conn, 'bytes_sent', 0)
+                packets_sent = getattr(conn, 'packets_sent', 0)
+                flow_id = getattr(conn, 'flow_id', '')
+                tcp_state = getattr(conn, 'tcp_state', '')
+                qos_class = getattr(conn, 'qos_class', '')
+            elif isinstance(conn, dict):
+                protocol = conn.get('protocol')
+                source_id = conn.get('source_id') or conn.get('source')
+                dest_id = conn.get('destination_id') or conn.get('destination')
+                bytes_sent = conn.get('bytes_sent', 0)
+                packets_sent = conn.get('packets_sent', 0)
+                flow_id = conn.get('flow_id', '')
+                tcp_state = conn.get('tcp_state', '')
+                qos_class = conn.get('qos_class', '')
+            else:
+                continue
+            
+            if source_id in node_positions and dest_id in node_positions and protocol:
+                if protocol not in connections_by_protocol:
+                    connections_by_protocol[protocol] = []
+                
+                x1, y1 = node_positions[source_id]
+                x2, y2 = node_positions[dest_id]
+                
+                # Calculate flow intensity (for line width)
+                intensity = min(1.0, bytes_sent / 1000000) if bytes_sent else 0.5
+                
+                # Create hover text
+                hover_text = (
+                    f"<b>Data Flow: {source_id} → {dest_id}</b><br>"
+                    f"Protocol: {protocol.value if hasattr(protocol, 'value') else protocol}<br>"
+                    f"Flow ID: {flow_id}<br>"
+                    f"TCP State: {tcp_state}<br>"
+                    f"QoS Class: {qos_class}<br>"
+                    f"Bytes Sent: {bytes_sent}<br>"
+                    f"Packets: {packets_sent}"
+                )
+                
+                connections_by_protocol[protocol].append({
+                    'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
+                    'intensity': intensity,
+                    'hover': hover_text
+                })
+        
+        # Create a trace for each protocol
+        for protocol, conn_list in connections_by_protocol.items():
+            conn_x = []
+            conn_y = []
+            conn_hover = []
+            
+            for conn in conn_list:
+                # Add a slight offset for multiple connections between same nodes
+                x1, y1 = conn['x1'], conn['y1']
+                x2, y2 = conn['x2'], conn['y2']
+                
+                # Create a curved line for better visualization of multiple connections
+                # Using a quadratic bezier curve
+                mid_x = (x1 + x2) / 2
+                mid_y = (y1 + y2) / 2
+                
+                # Add perpendicular offset based on protocol hash for variety
+                offset = hash(str(protocol)) % 10 / 20  # Small offset between 0 and 0.5
+                perp_x = -(y2 - y1) * offset
+                perp_y = (x2 - x1) * offset
+                
+                # Create curve points
+                t = np.linspace(0, 1, 20)
+                for ti in t:
+                    # Quadratic Bezier: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+                    xi = (1-ti)**2 * x1 + 2*(1-ti)*ti * (mid_x + perp_x) + ti**2 * x2
+                    yi = (1-ti)**2 * y1 + 2*(1-ti)*ti * (mid_y + perp_y) + ti**2 * y2
+                    conn_x.append(xi)
+                    conn_y.append(yi)
+                conn_x.append(None)
+                conn_y.append(None)
+                conn_hover.extend([conn['hover']] * 20 + [None])
+            
+            # Get color for this protocol
+            color = protocol_colors.get(protocol, 'rgba(255,255,255,0.5)')
+            
+            conn_trace = go.Scatter(
+                x=conn_x, y=conn_y,
+                mode='lines',
+                line=dict(
+                    color=color,
+                    width=2,
+                    dash='dot'  # Dotted lines for data flows
+                ),
+                hoverinfo='text',
+                text=conn_hover,
+                name=f'Data Flow: {protocol.value if hasattr(protocol, "value") else protocol}',
+                legendgroup='flows',
+                showlegend=True
+            )
+            connection_traces.append(conn_trace)
+    
+    # ============ NODE TRACES ============
     # Group nodes by status
     status_groups = {
         'Healthy': {'color': '#2ecc71', 'symbol': 'circle', 'size': 25},
@@ -201,12 +390,42 @@ def create_network_graph(nodes):
     node_traces = []
     
     for status, style in status_groups.items():
-        group_nodes = [n for n in nodes if n.get('status') == status or 
+        group_nodes = [n for n in node_dicts if 
                       (status == 'Honeypot' and n.get('is_honeypot')) or
                       (status == 'Compromised' and n.get('is_compromised')) or
-                      (status == 'Quarantined' and n.get('is_quarantined'))]
+                      (status == 'Quarantined' and n.get('is_quarantined')) or
+                      (status == 'Healthy' and not any([
+                          n.get('is_compromised'), n.get('is_quarantined'), 
+                          n.get('is_honeypot'), n.get('status') == 'Under Attack'
+                      ])) or
+                      (status == 'Monitoring' and n.get('status') == 'Monitoring')]
         
         if group_nodes:
+            # Add node metrics to hover text
+            hover_texts = []
+            for n in group_nodes:
+                base_hover = (
+                    f"<b>{status.upper()}</b><br>"
+                    f"Name: {n.get('name', 'Unknown')}<br>"
+                    f"IP: {n.get('ip', n.get('ip_address', 'Unknown'))}<br>"
+                    f"Type: {n.get('type', 'Unknown')}<br>"
+                    f"OS: {n.get('os', 'Unknown')}"
+                )
+                
+                # Add performance metrics if available
+                if 'cpu_usage' in n:
+                    base_hover += f"<br>CPU: {n['cpu_usage']:.1f}%"
+                if 'memory_usage' in n:
+                    base_hover += f"<br>Memory: {n['memory_usage']:.1f}%"
+                if 'bandwidth_used' in n:
+                    base_hover += f"<br>Bandwidth: {n['bandwidth_used']:.1f} Mbps"
+                if 'security_level' in n:
+                    base_hover += f"<br>Security: {n['security_level']}%"
+                if 'value_score' in n:
+                    base_hover += f"<br>Value: {n['value_score']}"
+                
+                hover_texts.append(base_hover)
+            
             trace = go.Scatter(
                 x=[n['x'] for n in group_nodes],
                 y=[n['y'] for n in group_nodes],
@@ -223,23 +442,19 @@ def create_network_graph(nodes):
                 textfont=dict(size=9, color='black'),
                 name=status,
                 hoverinfo='text',
-                hovertext=[
-                    f"<b>{status.upper()}</b><br>" +
-                    f"Name: {n.get('name', 'Unknown')}<br>" +
-                    f"IP: {n.get('ip', 'Unknown')}<br>" +
-                    f"Type: {n.get('type', 'Unknown')}<br>" +
-                    f"OS: {n.get('os', 'Unknown')}"
-                    for n in group_nodes
-                ]
+                hovertext=hover_texts
             )
             node_traces.append(trace)
     
+    # ============ COMBINE ALL TRACES ============
+    all_traces = edge_traces + connection_traces + node_traces
+    
     # Create figure
     fig = go.Figure(
-        data=[edge_trace] + node_traces,
+        data=all_traces,
         layout=go.Layout(
             title=dict(
-                text='Network Topology',
+                text='Network Topology with Active Connections',
                 font=dict(size=16)
             ),
             showlegend=True,
@@ -255,9 +470,22 @@ def create_network_graph(nodes):
                 y=0.99,
                 xanchor="left",
                 x=0.01,
-                bgcolor='rgba(255,255,255,0.8)'
+                bgcolor='rgba(255,255,255,0.8)',
+                groupclick="toggleitem"
             )
         )
+    )
+    
+    # Add annotations for legend explanation
+    fig.add_annotation(
+        x=0.01, y=0.01,
+        xref="paper", yref="paper",
+        text="🟢 Solid lines: Network Links<br>⫸ Dotted lines: Data Flows",
+        showarrow=False,
+        font=dict(size=10),
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="gray",
+        borderwidth=1
     )
     
     return fig
@@ -468,6 +696,8 @@ def main():
         }
         
         nodes = st.session_state.api_client.get('/network/nodes') or []
+        edges = st.session_state.api_client.get('/network/edges') or []
+        connections = st.session_state.api_client.get('/network/connections') or []
         attacks = st.session_state.api_client.get('/attacks') or []
         agent_actions = st.session_state.api_client.get('/agents/actions') or []
         honeypots = st.session_state.api_client.get('/honeypots') or []
@@ -531,7 +761,7 @@ def main():
         st.header("🌐 Network Visualization")
         
         if nodes:
-            fig = create_network_graph(nodes)
+            fig = create_network_graph(nodes, edges, connections)
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No network data available. Make sure the backend is running.")
