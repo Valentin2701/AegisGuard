@@ -9,6 +9,7 @@ import uuid
 class NetworkService:
     def __init__(self):
         self.quarantine_logs = []
+        self.flow_id_counter = 0
 
     def get_network_status(self):
         simulation = current_app.simulation_state
@@ -90,11 +91,70 @@ class NetworkService:
     
     def get_all_flows(self, last_id=None):
         simulation = current_app.simulation_state
+        flows = []
         connections = simulation.traffic_generator.connections.values()
         attacks = simulation.attack_generator.get_active_attacks()
+        convert_connections = True
+        for attack in attacks:
+            attack_con = None
+            for con in connections:
+                con = con.to_dict()
+                if convert_connections:
+                    flow = self._convert_connection_to_flow(con)
+                    flows.append(flow)
+                if attack.get('source') == con.get('source_id') and attack.get('target') == con.get('target_id'):
+                    attack_con = con
+                    if not convert_connections:
+                        break
+            convert_connections = False  # Only convert connections once
+            if attack_con:
+                flow = self._convert_attack_to_flow(attack, attack_con)
+                flows.append(flow)
         if last_id is not None:
             flows = [f for f in flows if f['id'] > last_id]
         return flows
+    
+    def _convert_connection_to_flow(self, connection):
+        """Convert connection data to flow format"""
+        self.flow_id_counter += 1
+        return {
+            'id': self.flow_id_counter,
+            'src_ip': connection.get('source_ip'),
+            'dst_ip': connection.get('dest_ip'),
+            'src_port': connection.get('source_port'),
+            'dst_port': connection.get('dest_port'),
+            'protocol': connection.get('protocol', 'TCP'),
+            'pattern': connection.get('pattern', None),
+            'tcp_state': connection.get('tcp_state', None),
+            'bytes_sent': connection.get('bytes_sent', 0),
+            'packets_sent': connection.get('packets_sent', 0),
+            'qos_class': connection.get('qos_class', None),
+            'dscp': int(connection.get('dscp', None)) if connection.get('dscp') is not None else None,
+            'duration': (datetime.now() - connection.get('start_time', datetime.now())).total_seconds() if 'start_time' in connection else 0,
+            'timestamp': datetime.now().isoformat(),
+            'attack_type': 'normal'
+        }
+    
+    def _convert_attack_to_flow(self, attack, connection):
+        """Convert attack data to flow format"""
+        self.flow_id_counter += 1
+        return {
+            'id': self.flow_id_counter,
+            'source_ip': connection.source_ip,
+            'dest_ip': connection.dest_ip,
+            'source_port': connection.source_port,
+            'dest_port': connection.dest_port,
+            'protocol': 'TCP',
+            'pattern': attack.attack_type.value if hasattr(attack.attack_type, 'value') else str(attack.attack_type),
+            'tcp_state': None,
+            'bytes_sent': attack.intensity * 1000,  # Example calculation
+            'packets_sent': int(attack.intensity * 10),  # Example calculation
+            'qos_class': None,
+            'dscp': None,
+            'duration': (datetime.now() - attack.start_time).total_seconds(),
+            'timestamp': datetime.now().isoformat(),
+            'attack_type': attack.attack_type.value if hasattr(attack.attack_type, 'value') else str(attack.attack_type),
+        }
     
     def get_quarantined_nodes(self):
         """Get all quarantined nodes"""
