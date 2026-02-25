@@ -106,9 +106,9 @@ class Attack:
                 self.bytes_sent += packet.payload_size
         
         # Update attack state
-        self._update_attack_state(time_delta)
+        is_compromised = self._update_attack_state(time_delta)
         
-        return packets
+        return packets, is_compromised
     
     def _create_attack_packet(self) -> Optional[Packet]:
         """Create a single attack packet based on attack type"""
@@ -320,6 +320,12 @@ class Attack:
                     base_damage += 0.5  # Successful login!
         
         self.damage_caused = min(100.0, self.damage_caused + base_damage)
+
+        # Compromise target if damage exceeds threshold
+        if self.damage_caused >= 50.0 and not self.stopped:
+            self.stop()
+            return True  # Target compromised
+
         
         # Check if attack should stop
         if self.attack_type == AttackType.DDOS:
@@ -333,6 +339,7 @@ class Attack:
             if random.random() < detection_chance:
                 self.detected = True
                 self.detection_time = datetime.now()
+        return False
     
     def stop(self):
         """Stop the attack"""
@@ -390,7 +397,7 @@ class AttackGenerator:
             "total_bytes": 0,
         }
     
-    def generate_random_attack(self, intensity: float = None) -> Optional[Attack]:
+    def generate_random_attack(self, intensity: float = None, connections=None) -> Optional[Attack]:
         """Generate a random attack"""
         if intensity is None:
             intensity = random.uniform(0.3, 0.9)
@@ -401,10 +408,10 @@ class AttackGenerator:
             weights=list(self.attack_probabilities.values())
         )[0]
         
-        return self.generate_specific_attack(attack_type, intensity)
+        return self.generate_specific_attack(attack_type, intensity, connections)
     
     def generate_specific_attack(self, attack_type, 
-                                intensity: float = 0.7) -> Optional[Attack]:
+                                intensity: float = 0.7, connections=None) -> Optional[Attack]:
         """Generate a specific type of attack"""
         attack_type = AttackType(attack_type) if isinstance(attack_type, str) else attack_type
         nodes = list(self.network.nodes.values())
@@ -417,7 +424,7 @@ class AttackGenerator:
             return None
         
         # Select target
-        target = self._select_attack_target(nodes, source, attack_type)
+        target = self._select_attack_target(nodes, source, attack_type, connections)
         if not target:
             return None
         
@@ -462,10 +469,11 @@ class AttackGenerator:
         # Otherwise random node
         return random.choice(nodes)
     
-    def _select_attack_target(self, nodes: List, source, attack_type: AttackType):
+    def _select_attack_target(self, nodes: List, source, attack_type: AttackType, connections: List[Dict]=None):
         """Select target node for attack"""
         # Remove source from potential targets
-        potential_targets = [n for n in nodes if n.id != source.id]
+        node_connections = [cn.get("destination_id") for cn in connections if cn.get('source_id') == source.id] if connections else []
+        potential_targets = [n for n in nodes if n.id in node_connections and n.id != source.id]
         
         if attack_type == AttackType.DDOS:
             # DDoS targets valuable nodes
@@ -494,15 +502,21 @@ class AttackGenerator:
         # Default: random target
         return random.choice(potential_targets) if potential_targets else None
     
-    def update(self, time_delta: float = 1.0) -> List[Packet]:
+    def update(self, time_delta: float = 1.0, connections: List[Dict]=None) -> List[Packet]:
         """Update all attacks and generate packets"""
         all_packets = []
         
         # Update existing attacks
         for attack in list(self.attacks.values()):
             if attack.is_active and not attack.stopped:
-                packets = attack.generate_packets(time_delta)
+                packets, compromised = attack.generate_packets(time_delta)
                 all_packets.extend(packets)
+                
+                if compromised:
+                    # Mark target as compromised
+                    target_node = self.network.get_node(attack.target_id)
+                    if target_node:
+                        target_node.is_compromised = True
                 
                 # Update stats
                 self.stats["total_packets"] += len(packets)
@@ -518,9 +532,8 @@ class AttackGenerator:
                     self.stats["active_attacks"] -= 1
         
         # Random chance to generate new attack
-        for attack_type, probability in self.attack_probabilities.items():
-            if random.random() < probability * time_delta:
-                self.generate_specific_attack(attack_type)
+        if random.random() < 0.01 * time_delta:
+            self.generate_random_attack(intensity=random.uniform(0.3, 0.9), connections=connections)
         
         return all_packets
     

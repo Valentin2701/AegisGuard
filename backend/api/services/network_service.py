@@ -88,6 +88,14 @@ class NetworkService:
         simulation = current_app.simulation_state
         return [c.to_dict() for c in simulation.traffic_generator.connections.values()]
     
+    def get_all_flows(self, last_id=None):
+        simulation = current_app.simulation_state
+        connections = simulation.traffic_generator.connections.values()
+        attacks = simulation.attack_generator.get_active_attacks()
+        if last_id is not None:
+            flows = [f for f in flows if f['id'] > last_id]
+        return flows
+    
     def get_quarantined_nodes(self):
         """Get all quarantined nodes"""
         return self.get_nodes_by_status('quarantined')
