@@ -140,20 +140,20 @@ class NetworkService:
         self.flow_id_counter += 1
         return {
             'id': self.flow_id_counter,
-            'source_ip': connection.source_ip,
-            'dest_ip': connection.dest_ip,
-            'source_port': connection.source_port,
-            'dest_port': connection.dest_port,
-            'protocol': 'TCP',
-            'pattern': attack.attack_type.value if hasattr(attack.attack_type, 'value') else str(attack.attack_type),
-            'tcp_state': None,
-            'bytes_sent': attack.intensity * 1000,  # Example calculation
-            'packets_sent': int(attack.intensity * 10),  # Example calculation
-            'qos_class': None,
-            'dscp': None,
-            'duration': (datetime.now() - attack.start_time).total_seconds(),
+            'source_ip': connection.get('source_ip'),
+            'dest_ip': connection.get('dest_ip'),
+            'source_port': connection.get('source_port'),
+            'dest_port': connection.get('dest_port'),
+            'protocol': connection.get('protocol', 'TCP'),
+            'pattern': connection.get('pattern', None),
+            'tcp_state': connection.get('tcp_state', None),
+            'bytes_sent': attack.get('bytes_sent', 0),
+            'packets_sent': attack.get('packets_sent', 0),
+            'qos_class': connection.get('qos_class', None),
+            'dscp': connection.get('dscp', None),
+            'duration': (datetime.now() - attack.get('start_time', datetime.now())).total_seconds() if 'start_time' in attack else 0,
             'timestamp': datetime.now().isoformat(),
-            'attack_type': attack.attack_type.value if hasattr(attack.attack_type, 'value') else str(attack.attack_type),
+            'attack_type': attack.get('type', None)
         }
     
     def get_quarantined_nodes(self):
