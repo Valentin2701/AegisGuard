@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 import numpy as np
 
 @dataclass
 class NetworkFlow:
     """Core data structure for network flows"""
+    id: Optional[str] = None
     source_ip: str
     dest_ip: str
     source_port: int

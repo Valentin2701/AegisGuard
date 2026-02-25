@@ -1,0 +1,22 @@
+# config/simulation_config.yaml
+simulation:
+  socket:
+    host: "localhost"
+    port: 8000
+  
+  rest:
+    base_url: "http://localhost:8000/api/v1"
+    use_https: false
+    api_key: null  
+    verify_ssl: false
+  
+  adapter:
+    update_interval: 0.5  
+    flow_buffer_seconds: 60  
+    max_flows_per_request: 10000
+    
+  endpoints:
+    attacks: "/attacks"
+    hosts: "/network/nodes"
+    status: "/network/status"
+    flows_since: "/network/flows"
