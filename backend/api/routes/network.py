@@ -33,6 +33,14 @@ def get_all_connections():
     connections = network_service.get_all_connections()
     return jsonify(connections), 200
 
+@network_bp.route('/network/flows', methods=['GET'])
+@handle_errors
+def get_all_flows():
+    """Get all network flows"""
+    last_id = request.args.get('last_id', default=None, type=int)
+    flows = network_service.get_all_flows(last_id)
+    return jsonify(flows), 200
+
 @network_bp.route('/network/nodes/<node_id>', methods=['GET'])
 @handle_errors
 def get_node(node_id):
