@@ -658,7 +658,9 @@ def main():
                 'target': target,
                 'severity': severity
             })
-            if result:
+            if result.get('error'):
+                st.error(f"❌ {result['error']}")
+            else:
                 st.success(f"✅ {attack_type} attack injected on {target}")
                 st.balloons()
         
