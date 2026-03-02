@@ -70,5 +70,4 @@ def handle_update_request(data):
     try:
         simulation_service.update_simulation(data)
     except Exception as e:
-        print(f"Error in handle_update_request: {e}")
         emit('error', {'message': str(e)})

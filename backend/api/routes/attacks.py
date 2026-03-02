@@ -37,6 +37,9 @@ def inject_attack():
         attack_type=data['type'],
         severity=severity_enum.get(data.get('severity', 'Medium'), 0.6)
     )
+
+    if not attack:
+        return jsonify({'error': 'No connections available to generate attack'})
     
     return jsonify(attack.to_dict()), 201
 
