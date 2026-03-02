@@ -462,12 +462,13 @@ class AttackGenerator:
             return random.choice(compromised)
         
         # If no compromised nodes, select a vulnerable one
-        vulnerable = [n for n in nodes if n.security_level < 50]
+        vulnerable = [n for n in nodes if n.security_level < 50 and not n.is_quarantined and not n.is_honeypot]
         if vulnerable:
-            return random.choice(vulnerable)
-        
-        # Otherwise random node
-        return random.choice(nodes)
+            if random.random() < 0.8:  # 80% chance to pick a vulnerable node
+                return random.choice(vulnerable)
+            else:
+                return random.choice(nodes)
+        return random.choice(nodes)  # Fallback to any node
     
     def _select_attack_target(self, nodes: List, source, attack_type: AttackType, connections: List[Dict]=None):
         """Select target node for attack"""
