@@ -322,7 +322,7 @@ class Attack:
         self.damage_caused = min(100.0, self.damage_caused + base_damage)
 
         # Compromise target if damage exceeds threshold
-        if self.damage_caused >= 50.0 and not self.stopped:
+        if self.damage_caused >= 0.25 and not self.stopped:
             self.stop()
             return True  # Target compromised
 
