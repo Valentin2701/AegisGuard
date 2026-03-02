@@ -1,4 +1,3 @@
-# aegisguard/models/aegis_gnn.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
