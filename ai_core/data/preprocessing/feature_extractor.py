@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-from ai_core.data.flow_schema import NetworkFlow
+from ..interface import NetworkFlow
 
 class FeatureExtractor:
     """
@@ -31,7 +31,7 @@ class FeatureExtractor:
             protocols.append(flow.protocol)
             numerical_features.append([
                 flow.bytes_sent,
-                flow.packets,
+                flow.packets_sent,
                 flow.duration
             ])
         
@@ -63,7 +63,7 @@ class FeatureExtractor:
                 
                 if ip == flow.src_ip:
                     node_features[ip]['bytes_sent'].append(flow.bytes_sent)
-                    node_features[ip]['packets'].append(flow.packets)
+                    node_features[ip]['packets'].append(flow.packets_sent)
                     node_features[ip]['unique_dsts'].add(flow.dst_ip)
                     node_features[ip]['unique_ports'].add(flow.dst_port)
         
