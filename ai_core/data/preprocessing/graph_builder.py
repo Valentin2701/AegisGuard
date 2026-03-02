@@ -1,8 +1,8 @@
 from typing import List
 import torch
 import networkx as nx
-from ai_core.data.interface.flow_schema import NetworkFlow
-from ai_core.data.preprocessing.feature_extractor import FeatureExtractor
+from ..interface import NetworkFlow
+from ..preprocessing import FeatureExtractor
 from torch_geometric.data import HeteroData
 import numpy as np
 
@@ -36,7 +36,7 @@ class GraphBuilder:
             self.current_idx += 1
         
         # 3. Add node features to graph
-        ip_features = torch.tensor([node_features[ip] for ip in ip_nodes], 
+        ip_features = torch.tensor(np.array([node_features[ip] for ip in ip_nodes]), 
                                     dtype=torch.float)
         data['ip'].x = ip_features
         
@@ -54,7 +54,7 @@ class GraphBuilder:
                 # Edge features from flow
                 edge_features.append([
                     flow.bytes_sent / 1000,  # Normalize
-                    flow.packets,
+                    flow.packets_sent / 100,  # Normalize
                     flow.duration,
                     flow.src_port / 65535,  # Normalize port
                     flow.dst_port / 65535,

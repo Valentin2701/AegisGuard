@@ -6,21 +6,21 @@ import numpy as np
 @dataclass
 class NetworkFlow:
     """Core data structure for network flows"""
-    id: Optional[str] = None
-    source_ip: str
-    dest_ip: str
-    source_port: int
-    dest_port: int
+    src_ip: str
+    dst_ip: str
+    src_port: int
+    dst_port: int
     protocol: str
     pattern: str
-    tcp_state: Optional[str] = None
     bytes_sent: int
     packets_sent: int
-    qos_class: Optional[str] = None
-    dscp: Optional[int] = None
     duration: float
     timestamp: datetime
     label: int  # 0 = normal, 1+ = attack type
+    id: str = None
+    tcp_state: str = None
+    qos_class: str = None
+    dscp: int = None
     
     def to_features(self) -> np.ndarray:
         """Convert flow to feature vector"""

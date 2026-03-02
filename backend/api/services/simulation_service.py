@@ -58,7 +58,10 @@ class SimulationService:
     def inject_attack(self, attack_type, severity=0.6):
         """Inject a new attack"""
         simulation = current_app.simulation_state
-        attack = simulation.attack_generator.generate_specific_attack(attack_type, severity)
+        connections = [c.to_dict() for c in simulation.traffic_generator.connections.values()]
+        attack = simulation.attack_generator.generate_specific_attack(attack_type, severity, connections)
+        if not attack:
+            return None
         
         self.attack_history.append(attack)
         
@@ -94,10 +97,7 @@ class SimulationService:
         if not ip:
             ip = f"192.168.1.{random.randint(200, 250)}"
         
-        honeypot = NetworkNode(name=name, node_type=NodeType.HONEYPOT, ip_address=ip, os=OperatingSystem.LINUX, mac_address=self._generate_mac_address(), id=str(uuid.uuid4()))
-        honeypot.is_honeypot = True
-        honeypot.security_level = 20  # Honeypots are intentionally vulnerable
-        honeypot.value_score = 5  # Moderate value for scoring
+        honeypot = NetworkNode(name=name, node_type=NodeType.HONEYPOT, ip_address=ip, os=OperatingSystem.LINUX, mac_address=self._generate_mac_address(), id=str(uuid.uuid4()), is_honeypot=True, security_level=20, value_score=5)
 
         if honeypot_type == 'Low Interaction':
             honeypot.services = ['http']

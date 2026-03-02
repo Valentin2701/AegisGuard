@@ -47,7 +47,7 @@ class NetworkService:
                 'last_seen': datetime.now().isoformat(),
                 'is_compromised': node.is_compromised,
                 'is_quarantined': node.is_quarantined,
-                'is_honeypot': node.node_type.value == 'HONEYPOT' if hasattr(node.node_type, 'value') else False
+                'is_honeypot': node.is_honeypot if hasattr(node, 'is_honeypot') else False
             })
         return nodes
     
@@ -94,19 +94,15 @@ class NetworkService:
         flows = []
         connections = simulation.traffic_generator.connections.values()
         attacks = simulation.attack_generator.get_active_attacks()
-        convert_connections = True
+        for con in connections:
+            flow = self._convert_connection_to_flow(con)
+            flows.append(flow)
         for attack in attacks:
             attack_con = None
             for con in connections:
-                con = con.to_dict()
-                if convert_connections:
-                    flow = self._convert_connection_to_flow(con)
-                    flows.append(flow)
-                if attack.get('source') == con.get('source_id') and attack.get('target') == con.get('target_id'):
+                if attack.get('source') == con.source_id and attack.get('target') == con.target_id:
                     attack_con = con
-                    if not convert_connections:
-                        break
-            convert_connections = False  # Only convert connections once
+                    break
             if attack_con:
                 flow = self._convert_attack_to_flow(attack, attack_con)
                 flows.append(flow)
@@ -119,18 +115,18 @@ class NetworkService:
         self.flow_id_counter += 1
         return {
             'id': self.flow_id_counter,
-            'src_ip': connection.get('source_ip'),
-            'dst_ip': connection.get('dest_ip'),
-            'src_port': connection.get('source_port'),
-            'dst_port': connection.get('dest_port'),
-            'protocol': connection.get('protocol', 'TCP'),
-            'pattern': connection.get('pattern', None),
-            'tcp_state': connection.get('tcp_state', None),
-            'bytes_sent': connection.get('bytes_sent', 0),
-            'packets_sent': connection.get('packets_sent', 0),
-            'qos_class': connection.get('qos_class', None),
-            'dscp': int(connection.get('dscp', None)) if connection.get('dscp') is not None else None,
-            'duration': (datetime.now() - connection.get('start_time', datetime.now())).total_seconds() if 'start_time' in connection else 0,
+            'src_ip': connection.source_ip,
+            'dst_ip': connection.dest_ip,
+            'src_port': connection.source_port,
+            'dst_port': connection.dest_port,
+            'protocol': connection.protocol.value if hasattr(connection, 'protocol') else 'TCP',
+            'pattern': connection.pattern.name if hasattr(connection, 'pattern') else None,
+            'tcp_state': connection.tcp_state if hasattr(connection, 'tcp_state') else None,
+            'bytes_sent': connection.bytes_sent if hasattr(connection, 'bytes_sent') else 0,
+            'packets_sent': connection.packets_sent if hasattr(connection, 'packets_sent') else 0,
+            'qos_class': connection.qos_class.value if hasattr(connection, 'qos_class') else None,
+            'dscp': int(connection.dscp) if hasattr(connection, 'dscp') and connection.dscp is not None else None,
+            'duration': (datetime.now() - connection.start_time).total_seconds() if hasattr(connection, 'start_time') else 0,
             'timestamp': datetime.now().isoformat(),
             'attack_type': 'normal'
         }
@@ -140,18 +136,18 @@ class NetworkService:
         self.flow_id_counter += 1
         return {
             'id': self.flow_id_counter,
-            'source_ip': connection.get('source_ip'),
-            'dest_ip': connection.get('dest_ip'),
-            'source_port': connection.get('source_port'),
-            'dest_port': connection.get('dest_port'),
-            'protocol': connection.get('protocol', 'TCP'),
-            'pattern': connection.get('pattern', None),
-            'tcp_state': connection.get('tcp_state', None),
+            'source_ip': connection.source_ip,
+            'dest_ip': connection.dest_ip,
+            'source_port': connection.source_port,
+            'dest_port': connection.dest_port,
+            'protocol': connection.protocol if hasattr(connection, 'protocol') else 'TCP',
+            'pattern': connection.pattern if hasattr(connection, 'pattern') else None,
+            'tcp_state': connection.tcp_state if hasattr(connection, 'tcp_state') else None,
             'bytes_sent': attack.get('bytes_sent', 0),
             'packets_sent': attack.get('packets_sent', 0),
-            'qos_class': connection.get('qos_class', None),
-            'dscp': connection.get('dscp', None),
-            'duration': (datetime.now() - attack.get('start_time', datetime.now())).total_seconds() if 'start_time' in attack else 0,
+            'qos_class': connection.qos_class if hasattr(connection, 'qos_class') else None,
+            'dscp': connection.dscp if hasattr(connection, 'dscp') else None,
+            'duration': (datetime.now() - datetime.fromisoformat(attack.get('start_time', datetime.now()))).total_seconds() if 'start_time' in attack else 0,
             'timestamp': datetime.now().isoformat(),
             'attack_type': attack.get('type', None)
         }

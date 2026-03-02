@@ -172,6 +172,9 @@ class TrafficGenerator:
     
         if source_id == destination_id:
             return None  # No self-connections
+        
+        if any(c for c in self.connections.values() if c.source_id == source_id and c.destination_id == destination_id):
+            return None  # Connection already exists
     
         if not pattern:
             pattern = random.choice(list(TrafficPattern))
