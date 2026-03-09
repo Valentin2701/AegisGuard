@@ -100,7 +100,7 @@ class NetworkService:
         for attack in attacks:
             attack_con = None
             for con in connections:
-                if attack.get('source') == con.source_id and attack.get('target') == con.target_id:
+                if attack.get('source') == con.source_id and attack.get('target') == con.destination_id:
                     attack_con = con
                     break
             if attack_con:
@@ -140,12 +140,12 @@ class NetworkService:
             'dest_ip': connection.dest_ip,
             'source_port': connection.source_port,
             'dest_port': connection.dest_port,
-            'protocol': connection.protocol if hasattr(connection, 'protocol') else 'TCP',
-            'pattern': connection.pattern if hasattr(connection, 'pattern') else None,
+            'protocol': connection.protocol.value if hasattr(connection, 'protocol') else 'TCP',
+            'pattern': connection.pattern.name if hasattr(connection, 'pattern') else None,
             'tcp_state': connection.tcp_state if hasattr(connection, 'tcp_state') else None,
             'bytes_sent': attack.get('bytes_sent', 0),
             'packets_sent': attack.get('packets_sent', 0),
-            'qos_class': connection.qos_class if hasattr(connection, 'qos_class') else None,
+            'qos_class': connection.qos_class.value if hasattr(connection, 'qos_class') else None,
             'dscp': connection.dscp if hasattr(connection, 'dscp') else None,
             'duration': (datetime.now() - datetime.fromisoformat(attack.get('start_time', datetime.now()))).total_seconds() if 'start_time' in attack else 0,
             'timestamp': datetime.now().isoformat(),
