@@ -80,20 +80,19 @@ class AegisDataset(Dataset):
         # Builds graph
         graph = self.graph_builder.build_graph(flows)
         
-        if 'ip' in graph.node_types and graph['ip'].x.shape[0] > 0:
-            # Global label for the graph (1 if any attack flow, else 0)
-            has_attack = (graph['ip', 'communicates', 'ip'].y > 0).any().item()
+        if graph.num_nodes > 0:
+            has_attack = any(f.label > 0 for f in flows)
             label = 1 if has_attack else 0
             
-            # Save graph and label
-            self.graphs.append(graph)
-            self.labels.append(label)
+        # Save graph and label
+        self.graphs.append(graph)
+        self.labels.append(label)
             
-            # Update class counts
-            self.class_counts[label] = self.class_counts.get(label, 0) + 1
+        # Update class counts
+        self.class_counts[label] = self.class_counts.get(label, 0) + 1
             
-            while len(self.graphs) > self.max_samples:
-                self._trim_dataset()
+        while len(self.graphs) > self.max_samples:
+            self._trim_dataset()
     
     def _trim_dataset(self):
         """
