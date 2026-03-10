@@ -16,7 +16,7 @@ class NetworkFlow:
     packets_sent: int
     duration: float
     timestamp: datetime
-    label: int  # 0 = normal, 1+ = attack type
+    label: int
     id: str = None
     tcp_state: str = None
     qos_class: str = None
