@@ -58,7 +58,10 @@ class SimulationService:
     def inject_attack(self, attack_type, severity=0.6):
         """Inject a new attack"""
         simulation = current_app.simulation_state
-        attack = simulation.attack_generator.generate_specific_attack(attack_type, severity)
+        connections = [c.to_dict() for c in simulation.traffic_generator.connections.values()]
+        attack = simulation.attack_generator.generate_specific_attack(attack_type, severity, connections)
+        if not attack:
+            return None
         
         self.attack_history.append(attack)
         
@@ -94,10 +97,20 @@ class SimulationService:
         if not ip:
             ip = f"192.168.1.{random.randint(200, 250)}"
         
-        honeypot = NetworkNode(name=name, node_type=NodeType.HONEYPOT, ip_address=ip, os=OperatingSystem.LINUX, mac_address=self._generate_mac_address(), id=str(uuid.uuid4()))
-        honeypot.is_honeypot = True
-        honeypot.security_level = 20  # Honeypots are intentionally vulnerable
-        honeypot.value_score = 5  # Moderate value for scoring
+        honeypot = NetworkNode(name=name, node_type=NodeType.HONEYPOT, ip_address=ip, os=OperatingSystem.LINUX, mac_address=self._generate_mac_address(), id=str(uuid.uuid4()), is_honeypot=True, security_level=20, value_score=5)
+
+        if honeypot_type == 'Low Interaction':
+            honeypot.services = ['http']
+            honeypot.cpu_usage = random.uniform(1, 5)
+            honeypot.memory_usage = random.uniform(1, 5)
+        elif honeypot_type == 'Medium Interaction':
+            honeypot.services = ['http', 'ssh']
+            honeypot.cpu_usage = random.uniform(5, 15)
+            honeypot.memory_usage = random.uniform(5, 15)
+        elif honeypot_type == 'High Interaction':
+            honeypot.services = ['http', 'ssh', 'ftp', 'smtp']
+            honeypot.cpu_usage = random.uniform(15, 30)
+            honeypot.memory_usage = random.uniform(15, 30)
 
         simulation.network.add_node(honeypot)
         
@@ -225,14 +238,14 @@ class SimulationService:
     def get_metrics_history(self, timeframe='1h'):
         """Get historical metrics based on timeframe"""
         now = datetime.now()
-        if timeframe.endswith('h'):
+        if timeframe.endswith('m'):
+            minutes = int(timeframe[:-1])
+            cutoff = now - timedelta(minutes=minutes)
+        elif timeframe.endswith('h'):
             hours = int(timeframe[:-1])
             cutoff = now - timedelta(hours=hours)
-        elif timeframe.endswith('d'):
-            days = int(timeframe[:-1])
-            cutoff = now - timedelta(days=days)
         else:
-            cutoff = now - timedelta(hours=1)  # Default to last hour
+            cutoff = now - timedelta(minutes=3)  # Default to last hour
         
         return [m for m in self.metrics_history if datetime.fromisoformat(m['timestamp']) >= cutoff]
     

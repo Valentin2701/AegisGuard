@@ -9,19 +9,24 @@ import uuid
 class NetworkService:
     def __init__(self):
         self.quarantine_logs = []
+        self.flow_id_counter = 0
 
     def get_network_status(self):
         simulation = current_app.simulation_state
         total_nodes = len(simulation.network.nodes)
         compromised_nodes = len([n for n in simulation.network.nodes.values() if n.is_compromised])
         quarantined_nodes = len([n for n in simulation.network.nodes.values() if n.is_quarantined])
-        healthy_nodes = total_nodes - compromised_nodes - quarantined_nodes
+        attacks = simulation.attack_generator.get_active_attacks()
+        threat_level = sum([a.get('intensity', 0) for a in attacks]) / (len(attacks) + 1)
         
         return {
             'total_nodes': total_nodes,
+            'active_attacks': len(attacks),
             'compromised_nodes': compromised_nodes,
             'quarantined_nodes': quarantined_nodes,
-            'healthy_nodes': healthy_nodes,
+            'honeypots_deployed': len([n for n in simulation.network.nodes.values() if n.node_type.value == 'HONEYPOT' and n.is_honeypot]),
+            'threat_level': threat_level,
+            'total_traffic': simulation.traffic_generator.get_traffic_stats().get('total_bytes', 0),
             'timestamp': datetime.now().isoformat()
         }
     
@@ -42,7 +47,7 @@ class NetworkService:
                 'last_seen': datetime.now().isoformat(),
                 'is_compromised': node.is_compromised,
                 'is_quarantined': node.is_quarantined,
-                'is_honeypot': node.node_type.value == 'HONEYPOT' if hasattr(node.node_type, 'value') else False
+                'is_honeypot': node.is_honeypot if hasattr(node, 'is_honeypot') else False
             })
         return nodes
     
@@ -75,6 +80,77 @@ class NetworkService:
             return [n for n in nodes if n['is_honeypot']]
         else:
             return []
+        
+    def get_all_edges(self):
+        simulation = current_app.simulation_state
+        return [e.to_dict() for e in simulation.network.edges.values()]
+    
+    def get_all_connections(self):
+        simulation = current_app.simulation_state
+        return [c.to_dict() for c in simulation.traffic_generator.connections.values()]
+    
+    def get_all_flows(self, last_id=None):
+        simulation = current_app.simulation_state
+        flows = []
+        connections = simulation.traffic_generator.connections.values()
+        attacks = simulation.attack_generator.get_active_attacks()
+        for con in connections:
+            flow = self._convert_connection_to_flow(con)
+            flows.append(flow)
+        for attack in attacks:
+            attack_con = None
+            for con in connections:
+                if attack.get('source') == con.source_id and attack.get('target') == con.destination_id:
+                    attack_con = con
+                    break
+            if attack_con:
+                flow = self._convert_attack_to_flow(attack, attack_con)
+                flows.append(flow)
+        if last_id is not None:
+            flows = [f for f in flows if f['id'] > last_id]
+        return flows
+    
+    def _convert_connection_to_flow(self, connection):
+        """Convert connection data to flow format"""
+        self.flow_id_counter += 1
+        return {
+            'id': self.flow_id_counter,
+            'src_ip': connection.source_ip,
+            'dst_ip': connection.dest_ip,
+            'src_port': connection.source_port,
+            'dst_port': connection.dest_port,
+            'protocol': connection.protocol.value if hasattr(connection, 'protocol') else 'TCP',
+            'pattern': connection.pattern.name if hasattr(connection, 'pattern') else None,
+            'tcp_state': connection.tcp_state if hasattr(connection, 'tcp_state') else None,
+            'bytes_sent': connection.bytes_sent if hasattr(connection, 'bytes_sent') else 0,
+            'packets_sent': connection.packets_sent if hasattr(connection, 'packets_sent') else 0,
+            'qos_class': connection.qos_class.value if hasattr(connection, 'qos_class') else None,
+            'dscp': int(connection.dscp) if hasattr(connection, 'dscp') and connection.dscp is not None else None,
+            'duration': (datetime.now() - connection.start_time).total_seconds() if hasattr(connection, 'start_time') else 0,
+            'timestamp': datetime.now().isoformat(),
+            'attack_type': 'normal'
+        }
+    
+    def _convert_attack_to_flow(self, attack, connection):
+        """Convert attack data to flow format"""
+        self.flow_id_counter += 1
+        return {
+            'id': self.flow_id_counter,
+            'source_ip': connection.source_ip,
+            'dest_ip': connection.dest_ip,
+            'source_port': connection.source_port,
+            'dest_port': connection.dest_port,
+            'protocol': connection.protocol.value if hasattr(connection, 'protocol') else 'TCP',
+            'pattern': connection.pattern.name if hasattr(connection, 'pattern') else None,
+            'tcp_state': connection.tcp_state if hasattr(connection, 'tcp_state') else None,
+            'bytes_sent': attack.get('bytes_sent', 0),
+            'packets_sent': attack.get('packets_sent', 0),
+            'qos_class': connection.qos_class.value if hasattr(connection, 'qos_class') else None,
+            'dscp': connection.dscp if hasattr(connection, 'dscp') else None,
+            'duration': (datetime.now() - datetime.fromisoformat(attack.get('start_time', datetime.now()))).total_seconds() if 'start_time' in attack else 0,
+            'timestamp': datetime.now().isoformat(),
+            'attack_type': attack.get('type', None)
+        }
     
     def get_quarantined_nodes(self):
         """Get all quarantined nodes"""

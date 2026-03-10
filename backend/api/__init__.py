@@ -20,8 +20,12 @@ class SimulationState:
     def update(self, timedelta):
         """Advance the simulation by one step"""
         if self.is_running:
-            self.attack_generator.update(time_delta=timedelta)
+            connections = [c.to_dict() for c in self.traffic_generator.connections.values()]
+            self.attack_generator.update(time_delta=timedelta, connections=connections)
             self.traffic_generator.generate_packets(time_delta=timedelta)
+            if random.random() < 0.6:  # Randomly create new connections
+                edge = random.choice(list(self.network.edges.values()))
+                self.traffic_generator.create_connection(edge.source_id, edge.target_id, None)
 
 socketio = SocketIO()
 
