@@ -16,6 +16,7 @@ class NetworkNode:
     security_level: int = 50  # 0-100
     is_compromised: bool = False
     is_quarantined: bool = False
+    is_honeypot: bool = False
     
     # Services running on this node
     services: List[str] = None  # e.g., ["http", "ssh", "ftp"]
@@ -44,6 +45,7 @@ class NetworkNode:
             "security_level": self.security_level,
             "is_compromised": self.is_compromised,
             "is_quarantined": self.is_quarantined,
+            "is_honeypot": self.is_honeypot,
             "services": self.services,
             "cpu_usage": self.cpu_usage,
             "memory_usage": self.memory_usage,
@@ -63,6 +65,7 @@ class NetworkNode:
             security_level=data["security_level"],
             is_compromised=data["is_compromised"],
             is_quarantined=data["is_quarantined"],
+            is_honeypot=data["is_honeypot"],
             services=data["services"],
             cpu_usage=data["cpu_usage"],
             memory_usage=data["memory_usage"],
