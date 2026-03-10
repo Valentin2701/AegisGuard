@@ -1,6 +1,6 @@
 import pickle
 import time
-from matplotlib.path import Path
+from pathlib import Path
 import yaml
 from .data.interface import SimulationAdapter
 from .data.preprocessing import FeatureExtractor, GraphBuilder
