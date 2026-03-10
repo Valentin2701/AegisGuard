@@ -1,4 +1,6 @@
+import pickle
 import time
+from matplotlib.path import Path
 import yaml
 from .data.interface import SimulationAdapter
 from .data.preprocessing import FeatureExtractor, GraphBuilder
@@ -69,8 +71,31 @@ def main():
     # 7. Train
     print("\n🎯 Starting training...")
     trainer.train(num_epochs=config['training']['num_epochs'])
+
+    # 8. Save model and feature extractor for inference
+    model_dir = Path("models")
+    model_dir.mkdir(exist_ok=True)
+
+    with open(model_dir / "feature_extractor.pkl", "wb") as f:
+        pickle.dump(feature_extractor, f)
+
+    config = {
+        "model": {
+            "node_features": 5,
+            "hidden_dim": 128,
+            "num_layers": 3,
+            "dropout": 0.2,
+            "num_classes": 2
+        }
+    }
+    with open(model_dir / "config.yaml", "w") as f:
+        yaml.dump(config, f)
+
+    # Copy best model checkpoint
+    import shutil
+    shutil.copy("checkpoints/best_model.pt", model_dir / "best_model.pt")
     
-    # 8. Disconnect from simulation
+    # 9. Disconnect from simulation
     adapter.disconnect()
     print("✅ Training complete!")
 

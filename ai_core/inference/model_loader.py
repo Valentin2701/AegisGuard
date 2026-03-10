@@ -8,7 +8,7 @@ from ..models.aegis_gnn import AegisGuardGNN
 def load_model(model_dir: str):
     model_dir = Path(model_dir)
     
-    with open('.' / 'config.yaml', 'r') as f:
+    with open(model_dir / 'config.yaml', 'r') as f:
         config = yaml.safe_load(f)
     
     with open(model_dir / 'feature_extractor.pkl', 'rb') as f:
