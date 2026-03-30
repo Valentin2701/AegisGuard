@@ -1,3 +1,4 @@
+import logging
 import random
 from backend.simulation.attack_generator import AttackGenerator
 from backend.simulation.network_graph import NetworkGraph
@@ -5,6 +6,8 @@ from backend.simulation.traffic_generator import TrafficGenerator
 from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
+from .services.gnn_client import GNNClient
+from .services.network_service import NetworkService
 
 class SimulationState:
     def __init__(self):
@@ -13,6 +16,8 @@ class SimulationState:
         
         self.traffic_generator = TrafficGenerator(self.network)
         self.attack_generator = AttackGenerator(self.network)
+
+        self.last_flow_id = None
         
         self.is_running = False
         self.start_time = None
@@ -20,7 +25,13 @@ class SimulationState:
     def update(self, timedelta):
         """Advance the simulation by one step"""
         if self.is_running:
+            # Acquire data
             connections = [c.to_dict() for c in self.traffic_generator.connections.values()]
+            flows = NetworkService().get_all_flows(last_id=self.last_flow_id)
+            self.last_flow_id = flows[-1].get('id')
+
+            # Update simulation
+            gnn_client.send_flows(flows)
             self.attack_generator.update(time_delta=timedelta, connections=connections)
             self.traffic_generator.generate_packets(time_delta=timedelta)
             if random.random() < 0.6:  # Randomly create new connections
@@ -28,8 +39,11 @@ class SimulationState:
                 self.traffic_generator.create_connection(edge.source_id, edge.target_id, None)
 
 socketio = SocketIO()
+gnn_client = GNNClient()
 
 def create_app():
+    logging.basicConfig(logging=logging.INFO)
+
     app = Flask(__name__)
     
     # Configuration
@@ -41,6 +55,9 @@ def create_app():
     
     # Initialize SocketIO
     socketio.init_app(app, cors_allowed_origins="*")
+
+    # Connect GNN socket
+    gnn_client.connect(main_sio=socketio)
 
     # Initialize simulation state
     app.simulation_state = SimulationState()
