@@ -119,6 +119,10 @@ class SocketIOClient:
         def on_state_change(data):
             st.session_state.simulation_running = (data.get('state') == 'running')
             st.success(f"🔄 Simulation state changed to: {data.get('state')}")
+
+        @self.sio.on('gnn_prediction')
+        def on_gnn_prediction(data):
+            pass
     
     def connect(self):
         try:

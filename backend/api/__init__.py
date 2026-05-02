@@ -42,7 +42,7 @@ socketio = SocketIO()
 gnn_client = GNNClient()
 
 def create_app():
-    logging.basicConfig(logging=logging.INFO)
+    logging.basicConfig()
 
     app = Flask(__name__)
     
