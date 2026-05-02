@@ -8,7 +8,8 @@ import time
 from typing import List
 from .schemas import PredictRequest, PredictResponse, FlowInput
 from .model_loader import load_model
-from ..data.interface import NetworkFlow
+from .schemas import PredictResponse
+from ..data import NetworkFlow
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
