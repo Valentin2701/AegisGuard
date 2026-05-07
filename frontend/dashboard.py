@@ -123,6 +123,7 @@ class SocketIOClient:
 
         @self.sio.on('gnn_prediction')
         def on_gnn_prediction(data):
+            gnn_predictions.append(data)
             st.session_state.gnn_predictions = gnn_predictions  # Update session state to trigger re-render
             st.rerun()
     
