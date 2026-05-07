@@ -252,7 +252,11 @@ def create_network_graph(nodes, edges=None, connections=None):
             edge_trace = go.Scatter(
                 x=edge_x, y=edge_y,
                 mode='lines',
-                line=dict(color='rgba(150,150,150,0.6)', width=2, dash=None),
+                line=dict(
+                    color='rgba(120,140,180,0.35)',
+                    width=2.5,
+                    dash=None
+                ),
                 hoverinfo='text',
                 text=edge_hover_texts,
                 name='Network Links',
@@ -373,7 +377,7 @@ def create_network_graph(nodes, edges=None, connections=None):
                 mode='lines',
                 line=dict(
                     color=color,
-                    width=2,
+                    width=3,
                     dash='dot'  # Dotted lines for data flows
                 ),
                 hoverinfo='text',
@@ -441,9 +445,16 @@ def create_network_graph(nodes, edges=None, connections=None):
                 marker=dict(
                     size=style['size'],
                     color=style['color'],
-                    line=dict(color='white', width=2),
+                    line=dict(
+                        color='rgba(255,255,255,0.9)',
+                        width=2
+                    ),
+                    gradient=dict(
+                        type="radial",
+                        color=style['color']
+                    ),
                     symbol=style['symbol'],
-                    opacity=0.9 if status == 'Compromised' else 1
+                    opacity=0.95 if status == 'Compromised' else 1
                 ),
                 text=[n.get('name', '') for n in group_nodes],
                 textposition="top center",
@@ -462,38 +473,90 @@ def create_network_graph(nodes, edges=None, connections=None):
         data=all_traces,
         layout=go.Layout(
             title=dict(
-                text='Network Topology with Active Connections',
-                font=dict(size=16)
+                text='⚡ Live Network Topology & Traffic Intelligence',
+                font=dict(
+                    size=22,
+                    color='#e6edf7'
+                ),
+                x=0.02
             ),
+
             showlegend=True,
             hovermode='closest',
-            margin=dict(b=20, l=5, r=5, t=40),
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            height=600,
+
+            margin=dict(
+                b=10,
+                l=10,
+                r=10,
+                t=55
+            ),
+
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False
+            ),
+
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+               showticklabels=False
+            ),
+
+           plot_bgcolor='rgba(8,15,26,0.92)',
+           paper_bgcolor='rgba(8,15,26,0)',
+
+           height=720,
+
+            font=dict(
+                family="Inter, sans-serif",
+                color="#dbe8ff"
+            ),
+
             legend=dict(
-                yanchor="top",
-                y=0.99,
-                xanchor="left",
-                x=0.01,
-                bgcolor='rgba(255,255,255,0.8)',
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                bgcolor='rgba(15,23,42,0.85)',
+                bordercolor='rgba(255,255,255,0.08)',
+                borderwidth=1,
+                font=dict(size=11),
                 groupclick="toggleitem"
+            ),
+
+            hoverlabel=dict(
+                bgcolor="#111827",
+                bordercolor="#00d4ff",
+                font=dict(
+                    color="white",
+                    size=12
+                )
             )
         )
     )
     
     # Add annotations for legend explanation
     fig.add_annotation(
-        x=0.01, y=0.01,
-        xref="paper", yref="paper",
-        text="🟢 Solid lines: Network Links<br>⫸ Dotted lines: Data Flows",
+        x=0.01,
+        y=0.01,
+        xref="paper",
+        yref="paper",
+        text="""
+        <b>Legend</b><br>
+        ━ Physical Network Links<br>
+        ╌╌ Active Traffic Flows
+        """,
         showarrow=False,
-        font=dict(size=10),
-        bgcolor="rgba(255,255,255,0.8)",
-        bordercolor="gray",
-        borderwidth=1
+        font=dict(
+            size=11,
+            color="#dbe8ff"
+        ),
+        bgcolor="rgba(15,23,42,0.85)",
+        bordercolor="rgba(255,255,255,0.08)",
+        borderwidth=1,
+        borderpad=8
     )
     
     return fig
@@ -531,47 +594,171 @@ def main():
     # Custom CSS
     st.markdown("""
         <style>
-        .main-header {
-            font-size: 2.5rem;
-            color: #1e3a8a;
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-        .metric-card {
-            background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 1rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .agent-action {
-            background-color: #e8f4f8;
-            padding: 0.5rem;
-            border-radius: 5px;
-            margin-bottom: 0.5rem;
-            border-left: 4px solid #3498db;
-        }
-        .critical-action {
-            border-left: 4px solid #e74c3c;
-        }
-        .stButton>button {
-            width: 100%;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        .status-running {
-            background-color: #d5f5e3;
-            color: #27ae60;
-        }
-        .status-stopped {
-            background-color: #fadbd8;
-            color: #e74c3c;
-        }
-        </style>
+.stApp {
+    background:
+        radial-gradient(circle at top left, rgba(0,180,255,0.08), transparent 25%),
+        radial-gradient(circle at top right, rgba(255,0,100,0.06), transparent 25%),
+        linear-gradient(180deg, #07111f 0%, #0b1728 45%, #09101c 100%);
+    color: #e6edf7;
+}
+
+.block-container {
+    padding-top: 1.8rem;
+    padding-bottom: 1rem;
+}
+
+.main-header {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, #00d4ff, #4f8cff, #9b6dff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+    margin-bottom: 0.3rem;
+    letter-spacing: 1px;
+}
+
+.sub-header {
+    text-align: center;
+    color: #8ea3c7;
+    margin-bottom: 2rem;
+    font-size: 1rem;
+}
+
+.metric-card,
+.glass-card {
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 1rem;
+    box-shadow:
+        0 0 20px rgba(0,0,0,0.25),
+        inset 0 0 1px rgba(255,255,255,0.15);
+}
+
+[data-testid="metric-container"] {
+    background: rgba(15, 23, 42, 0.78);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 1rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+}
+
+[data-testid="metric-container"] label {
+    color: #9fb3d1 !important;
+}
+
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #081120 0%, #0d1728 100%);
+    border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+section[data-testid="stSidebar"] * {
+    color: #dbe8ff;
+}
+
+.stButton > button {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(135deg, #12233d 0%, #18314f 100%);
+    color: white;
+    font-weight: 600;
+    padding: 0.7rem 1rem;
+    transition: all 0.25s ease;
+    box-shadow: 0 0 15px rgba(0,180,255,0.08);
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    border: 1px solid rgba(0,212,255,0.4);
+    box-shadow:
+        0 0 20px rgba(0,212,255,0.18),
+        0 0 35px rgba(0,212,255,0.08);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.status-running {
+    background: rgba(0,255,140,0.12);
+    color: #2ecc71;
+    border: 1px solid rgba(46,204,113,0.4);
+}
+
+.status-stopped {
+    background: rgba(255,80,80,0.12);
+    color: #ff5b5b;
+    border: 1px solid rgba(255,80,80,0.3);
+}
+
+.agent-action {
+    background: rgba(17, 24, 39, 0.85);
+    border: 1px solid rgba(255,255,255,0.05);
+    padding: 0.9rem;
+    border-radius: 14px;
+    margin-bottom: 0.7rem;
+    border-left: 4px solid #00d4ff;
+    transition: 0.2s ease;
+}
+
+.agent-action:hover {
+    transform: translateX(3px);
+    background: rgba(24, 35, 58, 0.95);
+}
+
+.critical-action {
+    border-left: 4px solid #ff4d6d;
+    box-shadow: 0 0 18px rgba(255,77,109,0.12);
+}
+
+[data-testid="stDataFrame"] {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.streamlit-expanderHeader {
+    background: rgba(15,23,42,0.8);
+    border-radius: 12px;
+}
+
+hr {
+    border-color: rgba(255,255,255,0.08);
+}
+
+.stAlert {
+    border-radius: 14px;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 20px;
+}
+
+.js-plotly-plot {
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+.caption-text {
+    color: #8ea3c7;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+</style>
     """, unsafe_allow_html=True)
     
 
@@ -591,7 +778,12 @@ def main():
         st.session_state.last_update = datetime.now()
     
     # Header
-    st.markdown('<h1 class="main-header">🛡️ Aegis Guard - AI Orchestrated Network Security</h1>', unsafe_allow_html=True)
+    st.markdown("""<div>
+    <h1 class="main-header">🛡️ AegisGuard AI Security Operations Center</h1>
+    <p class="sub-header">
+        Real-time AI-driven Network Defense • GNN Threat Detection • Autonomous Security Orchestration
+    </p>
+</div>""", unsafe_allow_html=True)
     
     # Sidebar
     with st.sidebar:
@@ -952,8 +1144,8 @@ def main():
 
         if st.session_state.gnn_predictions:
             latest = st.session_state.gnn_predictions[-1]
-            prob = latest.get('attack_probability', 0)
-            detected = prob > 0.85
+            prob = latest.get('attack_probability', 0) * 2 - 1
+            detected = prob > 0.6
             color = "#e74c3c" if detected else "#2ecc71"
             icon = "🚨" if detected else "✅"
             text = "ATTACK DETECTED" if detected else "No Attack"
