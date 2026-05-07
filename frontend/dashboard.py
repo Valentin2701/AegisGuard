@@ -1144,7 +1144,7 @@ hr {
 
         if st.session_state.gnn_predictions:
             latest = st.session_state.gnn_predictions[-1]
-            prob = latest.get('attack_probability', 0) * 2 - 1
+            prob = max(latest.get('attack_probability', 0) * 2 - 1, 0)
             detected = prob > 0.6
             color = "#e74c3c" if detected else "#2ecc71"
             icon = "🚨" if detected else "✅"
