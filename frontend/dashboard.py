@@ -16,6 +16,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+gnn_predictions = []  # Store GNN predictions received from backend
 
 # API Configuration
 API_BASE_URL = "http://localhost:8000/api/v1"
@@ -122,7 +123,8 @@ class SocketIOClient:
 
         @self.sio.on('gnn_prediction')
         def on_gnn_prediction(data):
-            pass
+            st.session_state.gnn_predictions = gnn_predictions  # Update session state to trigger re-render
+            st.rerun()
     
     def connect(self):
         try:
@@ -136,6 +138,7 @@ class SocketIOClient:
     
     def request_update(self, timedelta_seconds=5):
         if self.connected:
+            st.session_state.gnn_predictions = gnn_predictions  # Ensure session state is updated with latest predictions
             self.sio.emit('request_update', {'timedelta': timedelta_seconds})
 
 # ============ VISUALIZATION FUNCTIONS ============
@@ -570,7 +573,7 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    # Initialize session state
+
     if 'api_client' not in st.session_state:
         st.session_state.api_client = APIClient(API_BASE_URL)
     
@@ -708,6 +711,7 @@ def main():
         agent_actions = st.session_state.api_client.get('/agents/actions') or []
         honeypots = st.session_state.api_client.get('/honeypots') or []
         metrics = st.session_state.api_client.get('/metrics') or {}
+        st.session_state.gnn_predictions = gnn_predictions
         
         # Request WebSocket update if connected
         if st.session_state.socket_client.connected:
@@ -940,7 +944,29 @@ def main():
                 """, unsafe_allow_html=True)
         else:
             st.info("No recent agent actions")
-        
+
+            # ============ GNN REAL-TIME DETECTION ============
+        st.divider()
+        st.header("🧠 GNN Attack Detection")
+
+        if st.session_state.gnn_predictions:
+            latest = st.session_state.gnn_predictions[-1]
+            prob = latest.get('attack_probability', 0)
+            detected = prob > 0.85
+            color = "#e74c3c" if detected else "#2ecc71"
+            icon = "🚨" if detected else "✅"
+            text = "ATTACK DETECTED" if detected else "No Attack"
+
+            st.markdown(f"""
+                <div style="background-color:{color}20; padding:1rem; border-radius:10px; border-left:5px solid {color};">
+                    <h3 style="margin:0; color:{color};">{icon} {text}</h3>
+                    <p>Probability: <b>{prob:.2%}</b></p>
+                    <p>Flows: {latest.get('num_flows',0)} | Nodes: {latest.get('num_nodes',0)} | Edges: {latest.get('num_edges',0)}</p>
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("No GNN predictions available yet")
+                
         st.divider()
         
         # Compromised nodes

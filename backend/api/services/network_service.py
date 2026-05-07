@@ -7,9 +7,10 @@ from datetime import datetime
 import uuid
 
 class NetworkService:
+    flow_id_counter = 0
+
     def __init__(self):
         self.quarantine_logs = []
-        self.flow_id_counter = 0
 
     def get_network_status(self):
         simulation = current_app.simulation_state
@@ -136,10 +137,10 @@ class NetworkService:
         self.flow_id_counter += 1
         return {
             'id': self.flow_id_counter,
-            'source_ip': connection.source_ip,
-            'dest_ip': connection.dest_ip,
-            'source_port': connection.source_port,
-            'dest_port': connection.dest_port,
+            'src_ip': connection.source_ip,
+            'dst_ip': connection.dest_ip,
+            'src_port': connection.source_port,
+            'dst_port': connection.dest_port,
             'protocol': connection.protocol.value if hasattr(connection, 'protocol') else 'TCP',
             'pattern': connection.pattern.name if hasattr(connection, 'pattern') else None,
             'tcp_state': connection.tcp_state if hasattr(connection, 'tcp_state') else None,

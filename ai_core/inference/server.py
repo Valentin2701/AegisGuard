@@ -14,9 +14,6 @@ from ..data import NetworkFlow
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# ----------------------------------------------------------------------
-# 1. Create Socket.IO server (ASGI mode)
-# ----------------------------------------------------------------------
 sio = socketio.AsyncServer(
     async_mode='asgi',
     cors_allowed_origins='*',
@@ -25,9 +22,6 @@ sio = socketio.AsyncServer(
 )
 
 app = FastAPI(title="AegisGuard GNN Inference Server")
-
-# Mount Socket.IO onto the FastAPI app (the ASGI app will be used for running)
-# We'll create an ASGI app that combines both later.
 
 # Global variables for model and components
 model = None
@@ -57,9 +51,6 @@ def flows_to_networkflow(flow_inputs: List[FlowInput]) -> List[NetworkFlow]:
         flows.append(flow)
     return flows
 
-# ----------------------------------------------------------------------
-# 2. Socket.IO event handlers
-# ----------------------------------------------------------------------
 @sio.event
 async def connect(sid, environ):
     logger.info(f"Client connected: {sid}")

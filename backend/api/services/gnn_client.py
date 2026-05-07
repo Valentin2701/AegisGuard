@@ -1,5 +1,7 @@
+from flask_socketio import emit
 import socketio
 import logging
+
 from ..config import Config
 
 logger = logging.getLogger(__name__)
@@ -11,39 +13,40 @@ class GNNClient:
         self.server_url = server_url or Config.GNN_SERVER_URL
         self.sio = socketio.Client(logger=False, engineio_logger=False)
         self.connected = False
+        self.predictions = []
         self.main_sio = None
+        self.flask_app = None
         self._register_handlers()
 
     def _register_handlers(self):
         @self.sio.event
         def connect():
             self.connected = True
-            logger.info("✅ Connected to GNN inference server")
+            logger.info("Connected to GNN inference server")
 
         @self.sio.event
         def disconnect():
             self.connected = False
-            logger.warning("🔌 Disconnected from GNN inference server")
+            logger.warning("Disconnected from GNN inference server")
 
         @self.sio.on('gnn_prediction')
         def on_gnn_prediction(data):
-            logger.debug(f"Received GNN prediction: {data}")
-            if self.main_sio:
-                # Send prediction to client
-                self.main_sio.emit('gnn_prediction', data)
+            self.predictions.append(data)
 
         @self.sio.on('gnn_error')
         def on_gnn_error(data):
             logger.error(f"GNN error: {data}")
             if self.main_sio:
-                self.main_sio.emit('gnn_error', data)
+                self.main_sio.emit('gnn_error', data, namespace='/')
 
-    def connect(self, main_sio=None):
+    def connect(self, main_sio=None, app=None):
         """
         Connects to GNN server
         :param main_sio: главният Socket.IO сървър (flask-socketio), за да можем да изпращаме резултати на фронтенда
+        :param app: Flask application instance
         """
         self.main_sio = main_sio
+        self.flask_app = app
         try:
             self.sio.connect(self.server_url, wait_timeout=5)
             return True

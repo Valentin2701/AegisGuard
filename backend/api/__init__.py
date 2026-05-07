@@ -3,7 +3,7 @@ import random
 from backend.simulation.attack_generator import AttackGenerator
 from backend.simulation.network_graph import NetworkGraph
 from backend.simulation.traffic_generator import TrafficGenerator
-from flask import Flask
+from flask import Flask, app, current_app
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from .services.gnn_client import GNNClient
@@ -27,11 +27,16 @@ class SimulationState:
         if self.is_running:
             # Acquire data
             connections = [c.to_dict() for c in self.traffic_generator.connections.values()]
-            flows = NetworkService().get_all_flows(last_id=self.last_flow_id)
-            self.last_flow_id = flows[-1].get('id')
+            flows = []
+            with current_app.app_context():
+                flows = NetworkService().get_all_flows()
+            if flows:
+                self.last_flow_id = flows[-1].get('id')
 
             # Update simulation
             gnn_client.send_flows(flows)
+            if gnn_client.predictions:
+                socketio.emit('gnn_prediction', gnn_client.predictions[-1], namespace='/')
             self.attack_generator.update(time_delta=timedelta, connections=connections)
             self.traffic_generator.generate_packets(time_delta=timedelta)
             if random.random() < 0.6:  # Randomly create new connections
@@ -57,7 +62,7 @@ def create_app():
     socketio.init_app(app, cors_allowed_origins="*")
 
     # Connect GNN socket
-    gnn_client.connect(main_sio=socketio)
+    gnn_client.connect(main_sio=socketio, app=app)
 
     # Initialize simulation state
     app.simulation_state = SimulationState()
