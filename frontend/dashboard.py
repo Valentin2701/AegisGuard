@@ -862,7 +862,6 @@ hr {
                 st.error(f"❌ {result['error']}")
             else:
                 st.success(f"✅ {attack_type} attack injected on {target}")
-                st.balloons()
         
         st.divider()
         
